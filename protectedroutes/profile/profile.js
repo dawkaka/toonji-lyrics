@@ -633,7 +633,7 @@ profileRoute.post('/api/p/follow/:name',validate,async (req,res) => {
    }
 
  }catch(e){
-
+   console.log(e);
    return res.json({type:'ERROR',msg:'something went wrong'})
  }
 })

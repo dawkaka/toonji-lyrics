@@ -256,28 +256,31 @@ commentsRouter.post("/api/award-comment",validate,async(req,res)=> {
       }
       const commUserId = comm.userId
       if(userId === commUserId) return res.json({type:'ERROR',msg:"can't perform this actions"})
-      //transfer coins to the user who's breakdown was awarded
-      const transferCoinsTo = await usersModel.findOne({userId: commUserId},{userCoins:1})
-      if(transferCoinsTo === null) return res.json({type:'ERROR',msg:'something went wrong'})
-      //add user's prevous coins and the num of coins awarded
-      let numToTransfer = !isNaN(transferCoinsTo.userCoins) ?  transferCoinsTo.userCoins + numOfCoins : numOfCoins
       let awardNotifOjb = {userId, songId, type: "comment",
                                 brORcommentId: commentId, award: awardsGiven.join(",")}
-      const hasTransfered = await usersModel.updateOne({userId:commUserId},
-        {$set:{userCoins: numToTransfer},$push :{"notifications.awards":awardNotifOjb}})
-        if(!hasTransfered) return res.json({type:'ERROR',msg:'something went wrong'})
-      //subtracting coins from user who awarded the breakdown
-      const transferCoinsFrom = await usersModel.updateOne({userId},
-        {$set:{userCoins: userCoins - numOfCoins}})
-        if (transferCoinsFrom.nModified == 0) {
-          return res.json({type:'ERROR',msg:'something went wrong'})
-        }
       let awards = comm.awards
       for(let j = 0; j < awardsGiven.length; j++) {
         awards[`${awardsGiven[j]}`]++
       }
-      await songsModel.updateOne({songId,"comments._id":commentId},
-                                           {$set:{"comments.$.awards":awards}})
+
+      const session = await usersModel.startSession()
+      try {
+        await session.withTransaction(async()=> {
+              await usersModel.updateOne({userId:commUserId},
+                      {$inc: {userCoins: numOfCoins},
+                       $push :{"notifications.awards":awardNotifOjb}},{session})
+
+              await usersModel.updateOne({userId},
+                       {$inc: {userCoins: -1 * numOfCoins}},{session})
+
+              await songsModel.updateOne({songId,"comments._id":commentId},
+                                        {$set:{"comments.$.awards":awards}},{session})
+        })
+      }catch(e) {
+        return res.json({type:'ERROR',msg:"award comment not successful"})
+      }finally {
+         session.endSession()
+      }
       res.json({type:'SUCCESS',msg:'comment awarded'})
   } catch (e) {
 

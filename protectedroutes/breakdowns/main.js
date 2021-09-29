@@ -260,23 +260,10 @@ breakdownsRouter.post("/api/award-breakdown",validate,async(req,res)=> {
     if(!breakdown) return res.json({type:'ERROR',msg:'something went wrong'})
     const brUserId = breakdown.userId
     if(userId === brUserId) return res.json({type:'ERROR',msg:"can't perform this actions"})
-    //transfer coins to the user who's breakdown was awarded
-    const transferCoinsTo = await usersModel.findOne({userId: brUserId},{userCoins:1})
-    if(transferCoinsTo === null) return res.json({type:'ERROR',msg:'something went wrong'})
-    //add user's prevous coins and the num of coins awarded
-    let numToTransfer = !isNaN(transferCoinsTo.userCoins) ?  transferCoinsTo.userCoins + numOfCoins : numOfCoins
+
     let awardsNotifObj = {userId, songId,punchlineId: punch._id, type: "breakdown",
                          brORcommentId: brId, award: awardsGiven.join(",")}
-    const hasTransfered = await usersModel.updateOne({userId:brUserId},
-      {$set:{userCoins: numToTransfer},$push:{"notifications.awards":awardsNotifObj}})
-      if(!hasTransfered) return res.json({type:'ERROR',msg:'something went wrong'})
-    //subtracting coins from user who awarded the breakdown
-    const transferCoinsFrom = await usersModel.updateOne({userId},
-      {$set:{userCoins: userCoins - numOfCoins}})
-      if (transferCoinsFrom.nModified == 0) {
-        return res.json({type:'ERROR',msg:'something went wrong'})
-      }
-        let breakdowns = punch.breakdowns;
+    let breakdowns = punch.breakdowns;
         for(let i = 0; i < breakdowns.length; i++) {
           if (breakdowns[i]._id.toString() === brId) {
             for(let j = 0; j < awardsGiven.length; j++) {
@@ -284,11 +271,29 @@ breakdownsRouter.post("/api/award-breakdown",validate,async(req,res)=> {
             }
           }
         }
-        await songsModel.updateOne({songId,"punchlines._id":punch._id},
-        {$set:{"punchlines.$.breakdowns": breakdowns}})
-        return res.json({type:'SUCCESS',msg:"breakdown awarded"})
-      } catch (e) {
 
+         const session = await usersModel.startSession()
+         try {
+           await session.withTransaction(async()=> {
+             await usersModel.updateOne({userId},
+              {$inc:{userCoins:  -1 * numOfCoins}},{session});
+
+             await usersModel.updateOne({userId:brUserId},
+               {$inc:{userCoins: numOfCoins},
+               $push:{"notifications.awards":awardsNotifObj}},{session});
+
+             await songsModel.updateOne({songId,"punchlines._id":punch._id},
+               {$set:{"punchlines.$.breakdowns": breakdowns}},{session})
+           })
+         }catch(e){
+           return res.json({type:'ERROR',msg:"award breakdown not successful"})
+         } finally {
+            session.endSession()
+         }
+        res.json({type:'SUCCESS',msg:"breakdown awarded"})
+
+      } catch (e) {
+        console.log(e);
         res.json({type:'ERROR',msg:'something went wrong'})
       }
     })

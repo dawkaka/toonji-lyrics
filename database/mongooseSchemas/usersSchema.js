@@ -41,10 +41,6 @@ const usersSchema = new Schema({
     type: Number,
     default: 0
   },
-  singles: {
-    type: Number,
-    default: 0
-  },
   albums:{
     type: Number,
     default: 0
