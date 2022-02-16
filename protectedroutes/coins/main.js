@@ -13,7 +13,7 @@ coinsRouter.post('/api/coins/buy-coins',validate,async (req,res) => {
    const userId = req.session.user.userId
    const transaction = await coinsPurchasesModel.findOne({link})
 
-   if(transaction) return res.json({type:'ERROR',msg:'transaction already completed'})
+   if(transaction) return res.status(409).json({type:'ERROR',msg:'transaction already completed'})
    const newCoinPurchase = new coinsPurchasesModel({
      link: link,
      userId: userId,
@@ -63,17 +63,54 @@ coinsRouter.post('/api/coins/buy-coins',validate,async (req,res) => {
          {$set:{completed: true,amount: amount, payerEmail: payerEmail}},{session})
      })
    }catch(e){
-     return res.json({type:'ERROR',msg:"something went wrong"})
+     return res.status(500).json({type:'ERROR',msg:"something went wrong"})
    } finally {
       session.endSession()
    }
 
    return res.json({type:'SUCCESS',msg:'you have successfully bought ' + (amount * 100) + ' coins'})
  } catch (e) {
-   res.json({type:'ERROR',msg:'something went wrong'})
+   res.status(500).json({type:'ERROR',msg:'something went wrong'})
  }
 
 });
+
+
+coinsRouter.post("/api/buy-coins/flutterwave",validate,async (req,res)=> {
+    const {amount} = req.body
+    let response
+    try {
+       response = await axios({
+            url: process.env.FLUTTERWAVE_API_GATEWAY,
+            method: 'post',
+            headers: {
+              'Authorization': `Bearer ${process.env.FLUTTERWAVE_SEC_KEY}`,
+            },
+            data: {
+                  tx_ref: generateID(15),
+                  amount: amount,
+                  currency: "USD",
+                  redirect_url:"https://webhook.site/9d0b00ba-9a69-44fa-a43d-a82c33c36fdc",
+                  payment_options:"mobilemoney",
+                  customer:{
+                     email: req.session.user.email,
+                     phonenumber:"0542530435",
+                     name: req.session.user.userName
+                  },
+                  customizations:{
+                     title:`BUY TOONJI COINS`,
+                     description: `Complete payment of $${amount} for ${amount * 100} coins`,
+                     logo:"https://assets.piedpiper.com/logo.png"
+                  }
+            }
+          })
+    } catch (e) {
+       console.log(e);
+       res.status(400).json({type:'ERROR',msg:'something went wrong'})
+       return
+    }
+       res.json(response.data)
+})
 
 
 function generateID(n = 11) {

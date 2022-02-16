@@ -6,19 +6,21 @@ const usersModel = require('../database/mongooseSchemas/usersSchema')
 const stripe = require('stripe')
 homeRoute.get('/api',async (req,res)=> {
   try {
-  
+
     let songs = await songsModel.find({}).sort({uploadDate:-1});
     let userId = req.session.user ? req.session.user.userId : false;
     let recommended = getTopNine(songs,getRating,9)
     let newArrivals = songs.splice(0,9)
     recommended = recommended.map(song => {
       let hottesBar = findHottestBar(song)
+
     return  {
       songTitle: song.songTitle,
       songArtist: song.songArtist,
       hottesBar: hottesBar.punchline,
       songId: song.songId,
       barPreview: barPreview(hottesBar.punchline),
+      artist: hottesBar.artist,
       fires: numberToKOrM(hottesBar.raters.length),
       rating: getRating(song.raters),
       comments: numberToKOrM(song.comments.length),
@@ -26,7 +28,7 @@ homeRoute.get('/api',async (req,res)=> {
       otherArtists: song.otherArtists,
       favourited: song.favourited.length,
       isFav: userId ? song.favourited.some(a => a.userId === userId) : false,
-      songCover: song.songCover,
+      songCover: process.env.IMAGEURL + song.songCover,
     }
     })
     newArrivals = newArrivals.map(song => {
@@ -37,6 +39,7 @@ homeRoute.get('/api',async (req,res)=> {
       hottesBar: hottesBar.punchline,
       songId: song.songId,
       barPreview: barPreview(hottesBar.punchline),
+      artist: hottesBar.artist,
       fires: numberToKOrM(hottesBar.raters.length),
       rating: getRating(song.raters),
       comments: numberToKOrM(song.comments.length),
@@ -44,21 +47,35 @@ homeRoute.get('/api',async (req,res)=> {
       otherArtists: song.otherArtists,
       favourited: numberToKOrM(song.favourited.length),
       isFav: userId ? song.favourited.some(a => a.userId === userId) : false,
-      songCover: song.songCover,
+      songCover: process.env.IMAGEURL + song.songCover,
     }
     })
     res.json({songs:recommended,newArrivals:newArrivals})
   }catch (e) {
     console.log(e);
-    res.json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 });
 
 homeRoute.get('/api/search/:searchId',async (req,res)=>{
-    const songs = await songsModel.find({songTitle:{$regex:"^"+req.params.searchId,$options:'i'}})
-    const users = await usersModel.find({name:{$regex:"^"+req.params.searchId,$options:'i'}})
-    const data = {songs,users}
+    let searchId = req.params.searchId
+    searchId = searchId.replace(/\W/g,"")
+   try {
+    const songs = await songsModel.find({songTitle:{$regex:"^"+searchId,$options:'i'}},{songId: 1, songTitle: 1, songCover: 1, songArtist: 1})
+    const users = await usersModel.find({name:{$regex:"^"+req.params.searchId,$options:'i'}},{name: 1, picture: 1, verified: 1, points: 1})
+
+    const data = {songs: songs.map(song => {
+      song.songCover = process.env.IMAGEURL + song.songCover
+      return song
+    }),
+    users:   users.map(user => {
+      user.picture = process.env.IMAGEURL + user.picture
+      return user
+    })}
     res.json(data)
+    }catch(err) {
+     res.status(400).json({type:'ERROR',msg:'something went wrong'})
+     }
    })
 
 
@@ -133,6 +150,7 @@ function isInFavourites(songId,favourites) {
      }
      return str
    }
+
 
 
 module.exports = homeRoute;

@@ -8,7 +8,7 @@ viewLyricsRoute.get('/api/:lyricsId',async (req,res)=> {
  try {
    let data = await songsModel.findOne({songId: req.params.lyricsId});
    if(data === null){
-     return res.json({type:'ERROR', msg:'lyrcis not found'})
+     return res.status(400).json({type:'ERROR', msg:'lyrcis not found'})
    }
    let userId = req.session.user === undefined ? false: req.session.user.userId
    let userFavData
@@ -30,6 +30,7 @@ viewLyricsRoute.get('/api/:lyricsId',async (req,res)=> {
         userFav: userId ? userFavData.favouriteBars.some(b => a._id.toString() === b.punchlineId):false,
         breakdowns: a.breakdowns,
         punchline: a.punchline,
+        hasIcons: a.hasIcons === undefined ?  true : a.hasIcons === true ? true : false,
         _id: a._id
       }
       return aa
@@ -48,7 +49,7 @@ viewLyricsRoute.get('/api/:lyricsId',async (req,res)=> {
   })
   return res.json({modefiedData,performanceData})
  } catch (e) {
-   return res.json({type:'ERROR',msg:'something went wrong'})
+   return res.status(500).json({type:'ERROR',msg:'something went wrong'})
  }
 });
 
@@ -77,7 +78,7 @@ viewLyricsRoute.post('/api/report/:songId',async (req,res)=>{
       }
       return res.json({type:'SUCCESS',msg:"thanks, we will solve this as soon as possible"})
     } catch (e) {
-      res.json({type:'ERROR',msg:'something went wrong'})
+      res.status(500).json({type:'ERROR',msg:'something went wrong'})
     }
 })
 

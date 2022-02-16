@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken')
 const signupRoute = express.Router();
 const usersModel = require('../database/mongooseSchemas/usersSchema');
 
@@ -10,12 +11,12 @@ signupRoute.post('/api/signup',async (req,res)=> {
   let errorMessages = {general: [], password: [], email: []};
   let user;
   if(name === undefined || email === undefined || password === undefined){
-    return res.json({type:'ERROR',msg:'Missing some request bodies'})
+    return res.status(400).json({type:'ERROR',msg:'missing some request bodies'})
   }
   validateSignup(req.body,errorMessages);
 
   if(errorMessages.general.length || errorMessages.password.length ||errorMessages.email.length){
-    return res.json({type:"ERROR",
+    return res.status(400).json({type:"ERROR",
                       msg:"check enteries and try again",
                       data:[...errorMessages.general,...errorMessages.password,...errorMessages.email]});
   }
@@ -27,7 +28,7 @@ signupRoute.post('/api/signup',async (req,res)=> {
   try {
     user = await usersModel.findOne({$or: [{name},{email}]});
   } catch (e) {
-     res.json({type:'ERROR',msg:"something went wrong"})
+     res.status(500).json({type:'ERROR',msg:"something went wrong"})
   }
   if(user) {
     return user.name === name ?  res.json({type:"ERROR",msg: "name already exist"}) :
@@ -47,7 +48,6 @@ signupRoute.post('/api/signup',async (req,res)=> {
        })
      await user.save();
      let userId = await usersModel.findOne({name},{name:1,email:1,userId:1});
-     if(userId !== null){
      req.session.user = {
        userId: userId.userId,
        userName: userId.name,
@@ -55,16 +55,94 @@ signupRoute.post('/api/signup',async (req,res)=> {
        email: userId.email,
        isLoggedIn: true
      };
+
      res.cookie('_user_id',userId.name, { signed: true });
      return   res.json({type:"SUCCESS",msg:"registered successfully"})
-   }else {
-     return res.json({type:'ERROR',msg:'something went wrong'})
-   }
     } catch (e) {
-      res.json({type:'ERROR',msg:'something went wrong'})
+      res.status(500).json({type:'ERROR',msg:'something went wrong'})
     }
   }
 });
+
+
+signupRoute.post('/api/m/signup',async (req,res)=> {
+
+  let {name,email,password } = req.body;
+
+  let errorMessages = {general: [], password: [], email: []};
+  let user;
+  if(name === undefined || email === undefined || password === undefined){
+    return res.status(400).json({type:'ERROR',msg:'Missing some request bodies'})
+  }
+  validateSignup(req.body,errorMessages);
+
+  if(errorMessages.general.length || errorMessages.password.length ||errorMessages.email.length){
+    return res.status(400).json({type:"ERROR",
+                      msg:"check enteries and try again",
+                      data:[...errorMessages.general,...errorMessages.password,...errorMessages.email]});
+  }
+
+  name = name.toString().trim()
+  email = email.toString().trim()
+  password = password.toString().trim()
+
+  try {
+    user = await usersModel.findOne({$or: [{name},{email}]});
+  } catch (e) {
+     res.status(500).json({type:'ERROR',msg:"something went wrong"})
+  }
+  if(user) {
+    return user.name === name ?  res.json({type:"ERROR",msg: "name already exist"}) :
+     res.json({type:"ERROR",msg: "email already exist"})
+  }else {
+
+    let hashedPassword = '';
+    try {
+      let salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(password + process.env.STRTNPWD,salt);
+      const user = new usersModel({
+         name,
+         email,
+         userId : generateID(),
+         password: hashedPassword,
+         dateJoined: new Date(),
+       })
+     let userId = await user.save();
+
+     const token = jwt.sign({
+       userId: userId.userId,
+       userName: userId.name,
+       name: userId.name,
+       email: userId.email,
+     },process.env.TOKEN_SECRET, {expiresIn:'90s'})
+
+     res.set("Authorization", "bearer " + token)
+     return   res.json({type:"SUCCESS",msg:"registered successfully",token})
+
+     return res.status(400).json({type:'ERROR',msg:'something went wrong'})
+    } catch (e) {
+      res.status(500).json({type:'ERROR',msg:'something went wrong'})
+    }
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function generateID(n = 11) {
   let chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'

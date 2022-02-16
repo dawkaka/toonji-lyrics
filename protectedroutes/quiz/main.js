@@ -10,10 +10,10 @@ quizRouter.get('/api/top-fan-quiz/:profileId',validate,async(req,res)=>{
 try {
  let songs = await songsModel.find({songArtist: req.params.profileId})
  let user = await usersModel.findOne({userId: req.session.user.userId},{userCoins:1})
- if(!user)return res.json({type:'ERROR',msg:'we are not able to identify you'})
- if(user.userCoins < 50) return res.json({type:'ERROR',msg:'more coins required'})
+ if(!user)return res.status(400).json({type:'ERROR',msg:'we are not able to identify you'})
+ if(user.userCoins < 50) return res.status(401).json({type:'ERROR',msg:'more coins required'})
  if(!songs.length){
-   res.json({type: "Error", msg:"No songs from this artist"})
+   res.status(400).json({type: "Error", msg:"No songs from this artist"})
  }else {
  let generatedQuestions = await generateQuestions(songs)
  let questionsToken = generateID()
@@ -23,7 +23,7 @@ try {
  return res.json(generatedQuestions)
 }
 } catch (e) {
-  return res.json({type:'ERROR',msg:'something went wrong'})
+  return res.status(500).json({type:'ERROR',msg:'something went wrong'})
 }
 })
 
@@ -31,13 +31,13 @@ quizRouter.post('/api/top-fan/:name/:points',validate,async (req,res)=>{
      try {
        let qToken = req.session.user.questionsToken
        if(qToken !== req.signedCookies.token_id) {
-         return res.json({type:'ERROR', msg:'no questions generated for this user'})
+         return res.status(403).json({type:'ERROR', msg:'no questions generated for this user'})
        }
        let {name,points} = req.params;
        points = parseInt(points) || 0
        let userId = req.session.user.userId
        let user = await usersModel.findOne({name})
-       if(user === null) return res.json({type:'ERROR',msg:'artist not found'})
+       if(user === null) return res.status(400).json({type:'ERROR',msg:'artist not found'})
        let alreadyInTopFans = user.topFans.some(a => a.userId === userId)
        let prevAtempts = 0
        for(let i = 0; i < user.topFans.length; i++){
@@ -72,23 +72,27 @@ quizRouter.post('/api/top-fan/:name/:points',validate,async (req,res)=>{
        }
      } catch (e) {
 
-       res.json({type:'ERROR',msg:'something went wrong'})
+       res.status(500).json({type:'ERROR',msg:'something went wrong'})
      }
 })
 
 
 
-quizRouter.get("/api/battle/battle-link",validate, async(req,res) => {
+quizRouter.post("/api/battle/battle-link",validate, async(req,res) => {
       try {
         const userId = req.session.user.userId
+        const {artists} = req.body
         const user = await usersModel.findOne({userId},{userCoins:1,userId: 1})
-        if(!user) return res.json({type:'ERROR',msg:'user not found'})
-        if(user.userCoins - 100 < 0) return res.json({type:'ERROR',msg:"more coins required"})
+        const users = await usersModel.find({name: {$in: artists},verified:true},{userId:1,_id:0})
+        if(!user) return res.status(400).json({type:'ERROR',msg:'We could not identify you'})
+        if(users.length !== artists.length) return res.status(400).json({type:'ERROR',msg:"some of the artists are not on toonji. Check the names and try again"})
+        if(user.userCoins - 100 < 0) return res.status(400).json({type:'ERROR',msg:"more coins required"})
         const linkId = generateID(15)
         await usersModel.updateOne({userId},{$set:{userCoins: user.userCoins - 100}})
         const battle = new battlesModel({
           battleId: linkId,
           battleOwner: user.userId,
+          artists,
           createdDate: new Date(),
           numConnected: [],
           battleStarted: false
@@ -96,25 +100,30 @@ quizRouter.get("/api/battle/battle-link",validate, async(req,res) => {
         await battle.save()
         res.json({battleId: linkId})
       } catch (e) {
-
-        res.json({type:'ERROR',msg:'something went wrong'})
+        console.log(e);
+        res.status(500).json({type:'ERROR',msg:'something went wrong'})
       }
 })
 
+quizRouter.get("/api/battle/battle-link",validate,async(req,res)=> {
+    const userId = req.session.user.userId
+    const aDayAgo = Date.now() - (1000 * 60 * 60 * 24)
+    let links = await battlesModel.find({battleOwner:userId,createdDate: {$gt: new Date(aDayAgo)}},{battleId:1,artists:1,_id:0})
+    res.json(links)
+})
 
 quizRouter.get("/api/battle/:battleId",validate,async(req,res)=> {
      try {
        const {battleId} = req.params
        const userId = req.session.user.userId
        const isValidId = await battlesModel.findOne({battleId})
-       if(!isValidId) return res.json({type:'ERROR',msg:'invalid battle link'})
+       if(!isValidId) return res.status(400).json({type:'ERROR',msg:'invalid battle link'})
        if(isValidId.numConnected.length > 0 && userId !== isValidId.battleOwner){
-         return res.json({type:'ERROR',msg:"you can't join this battle link atm"})
+         return res.status(400).json({type:'ERROR',msg:"you can't join this battle link atm"})
        }
        return res.json({type:"SUCCESS",msg:"here"})
      } catch (e) {
-
-       res.status(400).json({type:'ERROR',msg:'something went wrong'})
+       res.status(500).json({type:'ERROR',msg:'something went wrong'})
      }
 })
 
@@ -139,7 +148,7 @@ quizRouter.get("/api/battle-records/:userName", async (req,res)=> {
       if(userMap[`${opponentsNames[i].userId}`] === undefined) {
         userMap[`${opponentsNames[i].userId}`] = {
           name: opponentsNames[i].name,
-          picture: opponentsNames[i].picture
+          picture: process.env.IMAGEURL + opponentsNames[i].picture
         }
       }
     }
@@ -149,18 +158,18 @@ quizRouter.get("/api/battle-records/:userName", async (req,res)=> {
         userOne: {
           name: userMap[`${a.battleOwner.userId}`].name,
           points: a.battleOwner.userPoints,
-          picture: userMap[`${a.battleOwner.userId}`].picture
+          picture: process.env.IMAGEURL + userMap[`${a.battleOwner.userId}`].picture
         },
         userTwo: {
           name: userMap[`${a.opponent.userId}`].name,
           points: a.opponent.userPoints,
-          picture: userMap[`${a.opponent.userId}`].picture
+          picture: process.env.IMAGEURL + userMap[`${a.opponent.userId}`].picture
         }
       }
     }).filter(a => a.userOne.name && a.userTwo.name && a.userOne.points !== 0 && a.userTwo.points !== 0)
     res.json(battlesMap)
   } catch (e) {
-    res.json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 
@@ -186,7 +195,7 @@ quizRouter.get("/api/my/battle-records",validate,async (req,res)=> {
       if(userMap[`${opponentsNames[i].userId}`] === undefined) {
         userMap[`${opponentsNames[i].userId}`] = {
           name:opponentsNames[i].name,
-          picture:opponentsNames[i].picture
+          picture: process.env.IMAGEURL + opponentsNames[i].picture
         }
       }
     }
@@ -196,18 +205,18 @@ quizRouter.get("/api/my/battle-records",validate,async (req,res)=> {
         userOne: {
           name: userMap[`${a.battleOwner.userId}`].name,
           points: a.battleOwner.userPoints,
-          picture: userMap[`${a.battleOwner.userId}`].picture
+          picture: process.env.IMAGEURL + userMap[`${a.battleOwner.userId}`].picture
         },
         userTwo: {
           name: userMap[`${a.opponent.userId}`].name,
           points: a.opponent.userPoints,
-          picture: userMap[`${a.opponent.userId}`].picture
+          picture: process.env.IMAGEURL + userMap[`${a.opponent.userId}`].picture
         }
       }
     }).filter(a => a.userOne.name && a.userTwo.name && a.userOne.points !== 0 && a.userTwo.points !== 0)
     res.json(battlesMap)
   } catch (e) {
-    res.json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 

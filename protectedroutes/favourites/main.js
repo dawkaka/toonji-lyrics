@@ -27,7 +27,7 @@ favouritesRouter.get('/api/my/favourites/:favParam',validate,async (req,res)=>{
          favourited: song.favourited.length,
          otherArtists: song.otherArtists,
          isFav: true,
-         songCover: song.songCover,
+         songCover: process.env.IMAGEURL + song.songCover,
        }
        })
        res.json(songs)
@@ -66,10 +66,10 @@ favouritesRouter.get('/api/my/favourites/:favParam',validate,async (req,res)=>{
       res.json(favBars)
       return
      }
-      res.json({type:'ERROR',msg: "something went wrong"})
+      res.status(400).json({type:'ERROR',msg: "something went wrong"})
    } catch (e) {
 
-     return res.json({type:'ERROR',msg:'something went wrong'})
+     return res.status(500).json({type:'ERROR',msg:'something went wrong'})
    }
 })
 
@@ -83,7 +83,7 @@ favouritesRouter.post("/api/bar-favourited/:songId/:barId",validate,async(req,re
       return res.json({type:'SUCCESS',msg:'removed from favourite bars'})
     }else {
       let song = await songsModel.findOne({songId},{punchlines:1})
-      if(!song) return res.json({type:'ERROR',msg:'lyrics not found'})
+      if(!song) return res.status(400).json({type:'ERROR',msg:'lyrics not found'})
       let targetPunchline;
       for(let i = 0; i < song.punchlines.length; i++) {
         if(song.punchlines[i]._id.toString() === barId) {
@@ -91,7 +91,7 @@ favouritesRouter.post("/api/bar-favourited/:songId/:barId",validate,async(req,re
           break
         }
       }
-      if(!targetPunchline) return res.json({type:'ERROR',msg:'bar could not be found'})
+      if(!targetPunchline) return res.status(400).json({type:'ERROR',msg:'bar could not be found'})
       let favBarObj = {
         saidBy: targetPunchline.artist,
         punchlineId: barId,
@@ -100,10 +100,10 @@ favouritesRouter.post("/api/bar-favourited/:songId/:barId",validate,async(req,re
       }
       let see = await usersModel.updateOne({userId},{$push: {favouriteBars: favBarObj}})
       if(see) return res.json({type:'SUCCESS',msg:'bar added to favouites'})
-        res.json({type:'ERROR',msg:'something went wrong'})
+        res.status(400).json({type:'ERROR',msg:'something went wrong'})
     }
   } catch (e) {
-    res.status(400).json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 
@@ -112,7 +112,7 @@ favouritesRouter.post('/api/favourited/:songId',validate, async(req,res)=>{
   try {
     song = await songsModel.findOne({songId:req.params.songId});
   } catch (e) {
-    return res.json({type:'ERROR',msg:'something went wrong'})
+    return res.status(400).json({type:'ERROR',msg:'something went wrong'})
   }
  if(song !== null) {
      let alreadyAdded = false;
@@ -130,8 +130,8 @@ favouritesRouter.post('/api/favourited/:songId',validate, async(req,res)=>{
       {$push: {favouriteSongs: req.params.songId}})
     return res.json({type:"SUCCESS",msg:'added to favourites'})
    } catch (e) {
-     
-     return res.json({type:'ERROR',msg:'something went wrong'})
+
+     return res.status(500).json({type:'ERROR',msg:'something went wrong'})
    }
  }else {
    await songsModel.updateOne({songId: req.params.songId},
@@ -141,7 +141,7 @@ favouritesRouter.post('/api/favourited/:songId',validate, async(req,res)=>{
     return res.json({type:"SUCCESS",msg:'removed to favourites'})
  }
 }else {
-  return res.json({type:'ERROR',msg:'song not found'})
+  return res.status(500).json({type:'ERROR',msg:'song not found'})
 }
 })
 

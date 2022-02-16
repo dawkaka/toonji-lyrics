@@ -10,7 +10,7 @@ lyricsRouter.post('/api/lyrics/viewed/:lyricsId',async(req,res)=>{
           {$push: {views: new Date()}});
 
       } catch (e) {
-        return res.json({type:'ERROR',msg:'something went wrong'})
+        return res.status(400).json({type:'ERROR',msg:'something went wrong'})
       }
     res.json({type:"SUCCESS",msg:"view counted"})
 })
@@ -21,10 +21,10 @@ lyricsRouter.post('/api/lyrics/rate/:numberOfStars/:lyricsId',validate,async(req
               {raters:1})
             if(check !== null){
                if(check.raters.some(a => a.userId === req.session.user.userId)){
-                 return res.json({type:'ERROR',msg:'this action can not be performed twice'})
+                 return res.status(403).json({type:'ERROR',msg:'this action can not be performed twice'})
                }
             }else {
-              return res.json({type:'ERROR',msg:'lyrics not found'})
+              return res.status(500).json({type:'ERROR',msg:'lyrics not found'})
             }
             let rating = parseInt(req.params.numberOfStars)
            let song = await songsModel.updateOne({songId: req.params.lyricsId},
@@ -34,7 +34,7 @@ lyricsRouter.post('/api/lyrics/rate/:numberOfStars/:lyricsId',validate,async(req
             }}})
            res.json(song)
       } catch (e) {
-        res.json({type:'ERROR',msg:'something went wrong'})
+        res.status(500).json({type:'ERROR',msg:'something went wrong'})
       }
 })
 
@@ -43,7 +43,7 @@ lyricsRouter.post('/api/lyrics/rate/:numberOfStars/:lyricsId',validate,async(req
 lyricsRouter.post('/api/lyrics/fire/:songId/:barId',validate,async(req,res)=>{
   try {
       let rate = await songsModel.findOne({songId: req.params.songId})
-      if(rate === null) return res.json({type:'ERROR',msg:"lyrics not found"})
+      if(rate === null) return res.status(400).json({type:'ERROR',msg:"lyrics not found"})
       let punchId = rate.punchlines[req.params.barId]._id;
       let alreadyRated = rate.punchlines[req.params.barId].raters.some(a => {
         return a.userId === req.session.user.userId
@@ -93,8 +93,7 @@ lyricsRouter.post('/api/lyrics/fire/:songId/:barId',validate,async(req,res)=>{
     }
 
     } catch (e) {
-      console.log(e);
-     res.json({type:'ERROR',msg:'something went wrong'})
+     res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 

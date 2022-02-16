@@ -11,6 +11,7 @@ const battleSchema = new Schema({
   battleId: String,
   battleOwner: String,
   createdDate: Date,
+  artists: [String],
   ownerJoined: {
     type: Boolean,
     default: false

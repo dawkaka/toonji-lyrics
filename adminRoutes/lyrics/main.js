@@ -25,8 +25,10 @@ lyricsRouter.get('/api/c/contributor-request',validate,async(req,res)=> {
      for(let i = 0; i < request.length; i++) {
         for(let j = 0; j < users.length; j++) {
           if(request[i].userId == users[j].userId) {
-            request[i] = {name: users[j].name,points: users[j].points,
-              picture: users[j].picture,id:request[i]._id,
+            request[i] = {
+              name: users[j].name,points: users[j].points,
+              picture: process.env.IMAGEURL + users[j].picture,
+              id:request[i]._id,
               rrMessage: request[i].rrMessage
             }
             break;
@@ -35,7 +37,7 @@ lyricsRouter.get('/api/c/contributor-request',validate,async(req,res)=> {
      }
      res.json(request)
   } catch (e) {
-     res.json({type:'ERROR',msg:'something went wrong'})
+     res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 
@@ -47,8 +49,10 @@ lyricsRouter.get('/api/c/bug-reports',validate,async(req,res)=> {
    for(let i = 0; i < bugs.length; i++) {
       for(let j = 0; j < users.length; j++) {
         if(bugs[i].userId == users[j].userId) {
-          bugs[i] = {name: users[j].name,points: users[j].points,
-            picture: users[j].picture,id:bugs[i]._id,
+          bugs[i] = {
+            name: users[j].name,points: users[j].points,
+            picture: process.env.IMAGEURL + users[j].picture,
+            id:bugs[i]._id,
             rrMessage: bugs[i].rrMessage
           }
           break;
@@ -63,11 +67,11 @@ lyricsRouter.post('/api/upload-lyrics',validate2,async(req,res)=>{
 try{
 const form = new formidable.IncomingForm();
   form.parse(req, async (err, fields, files)=> {
-  if(err) return res.json({type:"ERROR",msg: "not able to process files please try again"});
+  if(err) return res.status(400).json({type:"ERROR",msg: "not able to process files please try again"});
   if(!fields.lyrics || !fields.songTitle ||
      !fields.songGenre || !fields.artist || !files.cover ||
      !fields.releaseDate || !fields.youtubeVideo || !fields.writers){
-    return res.json({type:'ERROR',msg:'Missing some request bodies'})
+    return res.status(400).json({type:'ERROR',msg:'Missing some request bodies'})
   }
   if(!isValidArtistName(fields.artist) ||
    !isValidArtistName(fields.otherArtists)) {
@@ -78,32 +82,32 @@ const form = new formidable.IncomingForm();
      fields.artist.trim() === "" ||
      fields.releaseDate.trim() === "" ||
       fields.youtubeVideo.trim() === "" || fields.writers.trim() === ""){
-    return res.json({type:'ERROR',msg:'only features field can be empty'})
+    return res.status(400).json({type:'ERROR',msg:'only features field can be empty'})
   }
 
   let image = files.cover;
   let stats = fs.statSync(image.path)
   let sizeInMb = stats.size/(1024 * 1024)
-  if(sizeInMb > 3) return res.json({type:'ERROR',msg:'image file too large'})
+  if(sizeInMb > 3) return res.status(400).json({type:'ERROR',msg:'image file too large'})
 
   image.name =  Date.now() + image.name.replace("/\W/g","");
   let extNameImage = path.extname(image.name);
   if(extNameImage != '.jpg' ){
-    return res.json({type:"ERROR", msg: 'invalid image file format'});
+    return res.status(400).json({type:"ERROR", msg: 'invalid image file format'});
   }
   const {lyrics,artist,songGenre,songTitle,producer,
   writers,otherArtists,releaseDate,youtubeVideo}  = fields;
   const songUploadedAlready = await songsModel.findOne({songTitle:songTitle,songArtist:artist})
-  if(songUploadedAlready) return res.json({type:'ERROR', msg:'song uploaded already'})
+  if(songUploadedAlready) return res.status(409).json({type:'ERROR', msg:'song uploaded already'})
   const songs = await songsModel.find({},{punchlines:1})
   const rawBars = reducePunchlines(songs)
   let sm = stringSimilarity.findBestMatch(lyrics,rawBars)
 
-  if(sm.bestMatch.rating > 0.85) return res.json({type:'ERROR',msg:"song already uploaded"})
+  if(sm.bestMatch.rating > 0.85) return res.status(409).json({type:'ERROR',msg:"song already uploaded"})
 
   let punchlinesArray = validateLyricsFormat(lyrics);
    if(!Array.isArray(punchlinesArray)) {
-     return res.json({type: 'ERROR',msg:"wrong lyrics format"})
+     return res.status(400).json({type: 'ERROR',msg:"wrong lyrics format"})
    }
   const fileContent = fs.readFileSync(image.path);
    fs.unlinkSync(image.path)
@@ -117,7 +121,7 @@ const form = new formidable.IncomingForm();
   s3.upload(params, (err, data) => {
       if (err) {
 
-          res.json({type:'ERROR',msg:'error uploading image'})
+          res.status(500).json({type:'ERROR',msg:'error uploading image'})
       }else {
         let uploader;
         if(req.session.user) {
@@ -142,14 +146,14 @@ const form = new formidable.IncomingForm();
     })
 
     song.save((err,result)=>{
-      if(err) return res.json({type:"ERROR", msg:'not able to save song details'});
+      if(err) return res.status(500).json({type:"ERROR", msg:'not able to save song details'});
         res.json({type: "SUCCESS", msg: "song successfully uploaded"})
     });
   }
 })
  })
 }catch(e) {
-  res.json({type:'ERROR',msg:'something went wrong'})
+  res.status(500).json({type:'ERROR',msg:'something went wrong'})
 }
 })
 
@@ -159,7 +163,7 @@ lyricsRouter.get('/api/edit-lyrics/:songId',async (req,res) => {
     let songId = req.params.songId
     let song = await songsModel.findOne({songId})
     if(song === null) {
-     return res.json({type:'ERROR',msg:'song not found'})
+     return res.status(400).json({type:'ERROR',msg:'song not found'})
     }
     let data =  {
       artist: song.songArtist,
@@ -175,7 +179,7 @@ lyricsRouter.get('/api/edit-lyrics/:songId',async (req,res) => {
     res.json(data)
   } catch (e) {
 
-    res.json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 
@@ -184,9 +188,13 @@ lyricsRouter.get("/api/songs/reported-songs",validate,async(req,res)=> {
        let reportedSongs = await songsModel.find({reports: {$exists:true,
          $not: {$size: 0}}}
          ,{songId:1,songTitle:1,songArtist:1,reports:1,songCover:1})
-        return res.json(reportedSongs)
+         reportedSongs = reportedSongs.map(song => {
+           song.songCover = process.env.IMAGEURL + reportedSongs.songCover
+           return song
+         })
+         return res.json(reportedSongs)
     } catch (e) {
-      return res.json({type:'ERROR',msg:'something went wrong'})
+      res.status(500).json({type:'ERROR',msg:'something went wrong'})
     }
 })
 
@@ -198,7 +206,7 @@ lyricsRouter.post('/api/songs/clear-reports/:songId',validate,async(req,res)=> {
       }})
        res.json({type:'SUCCESS',msg:'reports cleared'})
     } catch (e) {
-       res.json({type:'ERROR',msg:'something went wrong'})
+       res.status(500).json({type:'ERROR',msg:'something went wrong'})
     }
 })
 
@@ -207,9 +215,13 @@ lyricsRouter.get('/api/songs/title/:songTitle',validate,async(req,res) => {
      const songs = await songsModel.find({songTitle:
        {$regex:"^"+req.params.songTitle,$options:'i'}},
        {songTitle:1,songId:1,songCover:1,songArtist:1})
+       songs = songs.map(song => {
+         song.songCover = process.env.IMAGEURL + songs.songCover
+         return song
+       })
      return res.json(songs)
    } catch (e) {
-     return res.json({type:'ERROR',msg:'something went wrong'})
+     return res.status(500).json({type:'ERROR',msg:'something went wrong'})
    }
 })
 
@@ -217,9 +229,13 @@ lyricsRouter.get('/api/songs/user/:name',validate,async(req,res)=> {
   try {
     const songs = await songsModel.find({songArtist: req.params.name},
       {songTitle:1,songId:1,songCover:1,songArtist:1})
+      songs = songs.map(song => {
+        song.songCover = process.env.IMAGEURL + songs.songCover
+        return song
+      })
     return res.json(songs)
   } catch (e) {
-    res.json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 
@@ -229,7 +245,7 @@ lyricsRouter.post('/api/songs/delete/:songId',validate,async(req,res)=> {
       return res.json({type:'SUCCESS',msg:'song deleted'})
     } catch (e) {
 
-      return res.json({type:'ERROR',msg:'something went wrong'})
+      return res.status(500).json({type:'ERROR',msg:'something went wrong'})
     }
 })
 
@@ -246,38 +262,38 @@ lyricsRouter.post('/api/edit-lyrics/:id',validate2,async (req,res)=>{
     if(!fields.lyrics || !fields.songTitle ||
        !fields.songGenre || !fields.artist ||
        !fields.releaseDate || !fields.youtubeVideo || !fields.writers){
-      return res.json({type:'ERROR',msg:'Missing some request bodies'})
+      return res.status(400).json({type:'ERROR',msg:'Missing some request bodies'})
     }
     if(!isValidArtistName(fields.artist) ||
      !isValidArtistName(fields.otherArtists)) {
-      return res.json({type:'ERROR',msg:'invalid artist name'})
+      return res.status(400).json({type:'ERROR',msg:'invalid artist name'})
     }
     if(fields.lyrics.trim() === "" || fields.songTitle.trim() === "" ||
        fields.songGenre.trim() === "" ||
        fields.artist.trim() === "" ||  fields.releaseDate.trim() === "" ||
         fields.youtubeVideo.trim() === "" || fields.writers.trim() === ""){
-          return res.json({type:'ERROR',msg:'only features field can be empty'})
+          return res.status(400).json({type:'ERROR',msg:'only features field can be empty'})
         }
     let image = files.cover;
     if(image !== undefined){
       let stats = fs.statSync(image.path)
       let sizeInMb = stats.size/(1024 * 1024)
-      if(sizeInMb > 3) return res.json({type:'ERROR',msg:'image file too large'})
+      if(sizeInMb > 3) return res.status(400).json({type:'ERROR',msg:'image file too large'})
     let extNameImage = path.extname(image.name);
     if(extNameImage != '.jpg'){
-      return res.json({type:"ERROR", msg: 'invalid image file formats'});
+      return res.status(400).json({type:"ERROR", msg: 'invalid image file formats'});
     }
    }
     const {lyrics,artist,songGenre,songTitle,producer,
       writers,otherArtists,releaseDate,youtubeVideo}  = fields;
       if(!isValidArtistName(artist) ||
        !isValidArtistName(otherArtists)) {
-        return res.json({type:'ERROR',msg:'invalid artist name'})
+        return res.status(400).json({type:'ERROR',msg:'invalid artist name'})
       }
 
       let punchlinesArray = validateLyricsFormatEdit(lyrics,songToEdit.punchlines);
        if(!Array.isArray(punchlinesArray)) {
-         return res.json({type: 'ERROR',msg:"wrong lyrics format"})
+         return res.status(400).json({type: 'ERROR',msg:"wrong lyrics format"})
        }
        let editor;
        if(req.session.user){
@@ -334,7 +350,7 @@ lyricsRouter.post('/api/edit-lyrics/:id',validate2,async (req,res)=>{
      youtubeVideo,
      punchlines: punchlinesArray
    },$push:{editors:editor}},(err,data)=>{
-     if(err) return res.status(400).json({type:'ERROR',msg:"something went wrong"})
+     if(err) return res.status(500).json({type:'ERROR',msg:"something went wrong"})
      return res.json({type:'SUCCESS',msg:'successfully updated',data})
    });
  }
@@ -348,7 +364,7 @@ lyricsRouter.post('/api/edit-lyrics/:id',validate2,async (req,res)=>{
 function validate2(req,res,next) {
    let isContributor  =  req.session.user ? req.session.user.isContributor : false
    if(!req.session.admin && !isContributor){
-      res.json({type:'ERROR',msg: "you're authorized to perform this actoin"})
+      res.status(401).json({type:'ERROR',msg: "you're authorized to perform this actoin"})
    }else {
      next()
    }
@@ -391,15 +407,18 @@ function validateLyricsFormatEdit(lyrics,punchlinesObj){
       if(start > -1 && end > -1) {
         currentArtist = arr[i].substring(start + 1,end);
       }
+      let hasIcons = arr[i].substr(arr[i].length - 3, arr[i].length) === "--r" ? false : true;
       punchlines.push({
          punchline: i === 0 ? arr[i] : arr[i].replace('\n',""),
          artist: currentArtist,
+         hasIcons: hasIcons
       });
   }
 
   for(let i = 0; i < punchlinesObj.length; i++) {
     punchlinesObj[i].punchline = punchlines[i].punchline;
     punchlinesObj[i].artist = punchlines[i].artist;
+    punchlinesObj[i].hasIcons = punchlines[i].hasIcons
   }
   return punchlinesObj
 }
@@ -426,12 +445,13 @@ function validateLyricsFormat(lyrics) {
       if(start > -1 && end > -1) {
         currentArtist = arr[i].substring(start + 1,end);
       }
-
+      let hasIcons = arr[i].substr(arr[i].length - 3, arr[i].length) === "--r" ? false : true
       punchlines.push({
          punchline: i === 0 ? arr[i] : arr[i].replace('\n',""),
          artist: currentArtist,
          raters: [],
-         breakdowns: []
+         breakdowns: [],
+         hasIcons: hasIcons
       });
   }
   return punchlines;

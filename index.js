@@ -5,6 +5,7 @@ const fs  = require("fs")
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const mongoose = require('mongoose')
+const jwt = require("jsonwebtoken")
 const helmet = require("helmet");
 const path = require('path')
 const session = require('express-session');
@@ -23,8 +24,8 @@ const jsonParser = bodyParser.json()
 const cookieParser = require("cookie-parser")
 app.use(helmet())
 app.use(cors({
-origin: ['https://localhost:3000','https://10.104.44.66:3000','http://localhost:3000',
-   'http://10.105.105.101','https://toonji.com'],
+origin: ['http:// 192.168.43.59:3000','http://localhost:19006','http://localhost:3000',
+'https://toonji.com'],
 credentials:true,
 exposedHeaders:['set-cookie',"Date"]
 }))
@@ -49,7 +50,7 @@ app.use(session({
   saveUninitialized: true,
   cookie: {
     httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 3,
+    maxAge: 1000 * 60 * 60 * 24 * 7,
     SameSite: "None",
     Secure: true
   },
@@ -118,7 +119,8 @@ io.of("/api-battle").on('connection',socket => {
 
   socket.on("get-questions", async roomId => {
     //genearte questions and sent to all connected users in the room
-    const songs = await songsModel.find({})
+    const target = battlesModel.findOne({battleId:roomId},{artists:1})
+    const songs = await songsModel.find({songArtist:{$in: target.artists}})
     let questions = [];
     if(songs && songs.length > 0) questions = generateQuestions(songs)
     if(questions && questions.length === 10) {
@@ -261,6 +263,7 @@ io.of("/api-battle").on('connection',socket => {
   app.use(adminRoutes);
 
 const PORT = process.env.PORT || 5000;
+
 function startServer() {
  http.listen(PORT, ()=>{
  console.log('Express started on ' + PORT + ' in ' + app.get('env'));
@@ -283,13 +286,13 @@ function generateQuestions(songs) {
     const qTitles = [`What ${randomSong.songArtist} song was this said ?`,
       'Complete the lyrics'];
     if(randomSong.otherArtists !== "") {
-      qTitles.push(`Which artist said this on the Ksi song ${randomSong.songTitle} ?`)
+      qTitles.push(`Which artist said this on the song ${randomSong.songTitle} ?`)
     }
     let currentQuestion = qTitles[Math.floor(Math.random() * qTitles.length)];
     let randomPunchline = randomSong.punchlines[Math.floor(Math.random() * randomSong.punchlines.length)]
     switch (currentQuestion.substr(0,4)) {
       case 'What':
-      let queWhat = randomPunchline.punchline.replace(randomPunchline.songTitle,'*_*')
+      let queWhat = randomPunchline.punchline.replace(`/${randomPunchline.songTitle}/g`,'*_*')
           generatedQuestions.push({
             questionTitle: currentQuestion,
             questionText: queWhat,
@@ -319,7 +322,7 @@ function generateQuestions(songs) {
           gLength++
         break;
       case 'Whic':
-      let queWhic = randomPunchline.punchline.replace(randomPunchline.artist,'*_*')
+      let queWhic = randomPunchline.punchline.replace(`/${randomPunchline.artist}/g`,'*_*')
           generatedQuestions.push({
             questionTitle: currentQuestion,
             questionText: queWhic,
@@ -342,3 +345,8 @@ function generateID(n = 11) {
   }
   return str
 }
+
+
+
+/*['http://localhost:19006','http://localhost:3000',
+'https://toonji.com']*/

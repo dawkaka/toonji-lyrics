@@ -10,17 +10,17 @@ adminsSignupRoute.post('/api/c/contributor-request',async (req,res)=>{
    }
    validateSignup(req.body,errorMessages);
    if(errorMessages.general.length || errorMessages.email.length) {
-     return res.json({type:'ERROR',errorMessages});
+     return res.status(400).json({type:'ERROR',errorMessages});
    }
    let admin;
    try{
      admin = await adminsModel.findOne({$or: [{name},{email}]});
    }catch(e){
-   res.json({type:'ERROR',msg:'something went wrong'});
+   res.status(500).json({type:'ERROR',msg:'something went wrong'});
  }
    if(admin.length){
     return admin.name === name ? res.json({type: 'ERROR', msg:'Admin name already exists'}):
-    res.json({type:'ERROR', msg:'Admin email already exists'});
+    res.status(409).json({type:'ERROR', msg:'Admin email already exists'});
   }
 
     admin = new adminsModel({
@@ -32,7 +32,7 @@ adminsSignupRoute.post('/api/c/contributor-request',async (req,res)=>{
     try {
       await admin.save();
     }catch(e){
-      return res.json({type:'ERROR', msg:'something went wrong'});
+      return res.status(500).json({type:'ERROR', msg:'something went wrong'});
     }
     adminId = adminsModel.findOne({name});
     req.session.admin = {

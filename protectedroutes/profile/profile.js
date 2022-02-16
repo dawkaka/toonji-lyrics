@@ -15,7 +15,7 @@ profileRoute.post('/api/p/log-out',async(req,res)=> {
     res.json({type:'SUCCESS',msg:'loged out'})
   } catch (e) {
 
-    res.json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 
@@ -118,7 +118,7 @@ profileRoute.get('/api/p/notifications',validate,async(req,res)=> {
 
  } catch (e) {
 
-   res.json({type:'ERROR',msg:'something went wrong'})
+   res.status(500).json({type:'ERROR',msg:'something went wrong'})
  }
 })
 
@@ -130,7 +130,7 @@ profileRoute.delete('/api/p/notifications',validate,async(req,res) => {
                                       "notifications.upvotes":[],"notifications.others":[]}})
     res.json({type:'SUCCESS',msg:''})
   } catch (e) {
-      res.json({type:'ERROR',msg:''})
+      res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 
 })
@@ -152,13 +152,13 @@ profileRoute.post('/api/p/contributor-request',validate,async(req,res)=>{
          })
          rr.save(e => {
            if (e) {
-            return res.json({type:'ERROR',msg:"couldn't complete request"})
+            return res.status(400).json({type:'ERROR',msg:"couldn't complete request"})
            }
             res.json({type:'SUCCESS',msg:"request completed, we will notify you when your request has been accepted"})
          })
            } catch (e) {
 
-      res.json({type:'ERROR',msg: 'something went wrong'})
+      res.status(400).json({type:'ERROR',msg: 'something went wrong'})
     }
 })
 
@@ -179,7 +179,7 @@ profileRoute.post('/api/p/bug-report',validate,async(req,res)=> {
        })
          } catch (e) {
 
-          res.json({type:'ERROR',msg: 'something went wrong'})
+          res.status(500).json({type:'ERROR',msg: 'something went wrong'})
   }
 })
 
@@ -187,11 +187,11 @@ profileRoute.post('/api/p/bug-report',validate,async(req,res)=> {
 profileRoute.get('/api/p/:name',async(req,res)=>{
   try{
   if(req.params.name === undefined) {
-    return res.json({type:'ERROR',msg:'user not found'})
+    return res.status(400).json({type:'ERROR',msg:'user not found'})
   }
   let songs = await songsModel.find({songArtist:req.params.name})
   let data = await usersModel.findOne({name: req.params.name });
-  if(data === null) return res.json({type:'ERROR',msg: 'user not found'})
+  if(data === null) return res.status(400).json({type:'ERROR',msg: 'user not found'})
   let userId = req.session.user ? req.session.user.userId : false
   let battles = await allBattlesModel.find({battleId: {$in: data.battles}})
   battles = battles.filter(a => a.battleOwner.userId && a.opponent.userId && a.battleOwner.userPoints !== 0 && a.opponent.userPoints !== 0)
@@ -205,52 +205,70 @@ profileRoute.get('/api/p/:name',async(req,res)=>{
     points: data.points,
     bio: data.bio,
     noSongs: songs.length,
-    picture: data.picture,
+    picture: process.env.IMAGEURL + data.picture,
     battleRecord: battleRecords
   }
   res.json(data)
 }catch(e) {
 
-  res.json({type:'ERROR',msg:'something went wrong'})
+  res.status(500).json({type:'ERROR',msg:'something went wrong'})
 }
 })
 
-profileRoute.get('/api/p/followers/:name',async(req,res)=> {
+profileRoute.get('/api/p/followers/:name/:fetch',async(req,res)=> {
   try {
-   let {name} = req.params
-   let userFollowers = await usersModel.findOne({name},{followers:1})
-   let followers = await usersModel.find({userId: {$in: userFollowers.followers}},{name:1,userId:1,points:1,picture:1})
+   let {name,fetch} = req.params
+   fetch = parseInt(fetch)
+   const limit = 1000
+   let userFollowers = await usersModel.aggregate([{$match:{name}},{$project: {followers: {$slice : ["$followers",fetch,fetch + limit]}}}])
+   let followers = await usersModel.find({userId: {$in: userFollowers[0].followers}},{name:1,userId:1,points:1,picture:1})
    followers = followers.sort((a,b)=> b.points - a.points)
-   res.json(followers)
+   followers = followers.map(f => {
+     f.picture = process.env.IMAGEURL + f.picture
+     return f
+   })
+   res.json({data:followers, nextFetch: fetch + limit, isEnd: userFollowers[0].followers.length < limit ? true: false})
   } catch (e) {
-
-    res.json({type:'ERROR',msg:'someting went wrong'})
+    res.status(500).json({type:'ERROR',msg:'someting went wrong'})
   }
 })
 
-profileRoute.get('/api/p/my/followers',validate,async(req,res)=> {
+profileRoute.get('/api/p/my/followers/:fetch',validate,async(req,res)=> {
   try {
    let userId = req.session.user.userId
-   let userFollowers = await usersModel.findOne({userId},{followers:1})
-   let followers = await usersModel.find({userId: {$in: userFollowers.followers}},{name:1,userId:1,points:1,picture:1})
+   let {fetch} = req.params
+   fetch = parseInt(fetch)
+   const limit = 1000
+   let userFollowers = await usersModel.aggregate([{$match:{userId}},{$project: {followers: {$slice : ["$followers",fetch,fetch + limit]}}}])
+   let followers = await usersModel.find({userId: {$in: userFollowers[0].followers}},{name:1,userId:1,points:1,picture:1})
    followers = followers.sort((a,b)=> b.points - a.points)
-   res.json(followers)
+   followers = followers.map(f => {
+     f.picture = process.env.IMAGEURL + f.picture
+     return f
+   })
+   res.json({data:followers, nextFetch: fetch + limit, isEnd: followers.length < limit ? true:false})
   } catch (e) {
-
-    res.json({type:'ERROR',msg:'someting went wrong'})
+    res.status(500).json({type:'ERROR',msg:'someting went wrong'})
   }
 })
 
-profileRoute.get('/api/p/my/following',validate,async(req,res)=> {
+profileRoute.get('/api/p/my/following/:fetch',validate,async(req,res)=> {
   try {
-   let userId = req.session.user.userId
-   let userFollowers = await usersModel.findOne({userId},{following:1})
-   let following = await usersModel.find({userId: {$in: userFollowers.following}},{name:1,userId:1,points:1,picture:1})
-   following = following.sort((a,b)=> b.points - a.points)
-   res.json(following)
+    let userId = req.session.user.userId
+    let {fetch} = req.params
+    fetch = parseInt(fetch)
+    const limit = 1000
+    let userFollowing = await usersModel.aggregate([{$match:{userId}},{$project: {following: {$slice : ["$following",fetch,fetch + limit]}}}])
+    let following = await usersModel.find({userId: {$in: userFollowing[0].following}},{name:1,userId:1,points:1,picture:1})
+    following = following.sort((a,b)=> b.points - a.points)
+    following = following.map(f => {
+      f.picture = process.env.IMAGEURL + f.picture
+      return f
+    })
+    res.json({data:following, nextFetch: fetch + limit, isEnd: following.length < limit ? true:false})
   } catch (e) {
-
-    res.json({type:'ERROR',msg:'someting went wrong'})
+    console.log(e);
+    res.status(500).json({type:'ERROR',msg:'someting went wrong'})
   }
 })
 
@@ -261,7 +279,7 @@ profileRoute.get('/api/p/breakdowns/:name/:int',async(req,res)=> {
       let userName = req.params.name;
       let userBreaks = await usersModel.findOne({name:userName},
         {breakdowns: 1,userId:1,picture:1,points:1})
-      if(userBreaks === null) return res.json({type:'ERROR',msg:'user not found'})
+      if(userBreaks === null) return res.status(400).json({type:'ERROR',msg:'user not found'})
       let songsDigested = userBreaks.breakdowns.map(a => a.songId)
       let songs = await songsModel.find({songId: {$in:songsDigested}},
       {songId:1,songTitle:1,punchlines:1})
@@ -285,7 +303,7 @@ profileRoute.get('/api/p/breakdowns/:name/:int',async(req,res)=> {
                            breakdown: targetPunch.breakdowns[l].breakdown,
                            name: userName,
                            points: userBreaks.points,
-                           picture: userBreaks.picture,
+                           picture: process.env.IMAGEURL + userBreaks.picture,
                            id: targetPunch.breakdowns[l]._id,
                            date: targetPunch.breakdowns[l].date,
                            userVote: userId ? getUserVote(targetPunch.breakdowns[l].voters,userId)
@@ -310,7 +328,7 @@ profileRoute.get('/api/p/breakdowns/:name/:int',async(req,res)=> {
       res.json({breakdowns:userBreaksObjArray,isEnd,nextFetch})
   } catch (e) {
 
-    res.json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 
@@ -322,7 +340,7 @@ profileRoute.get('/api/p/my/breakdowns/:int',validate,async(req,res)=> {
     let userName = req.session.user.name;
     let userBreaks = await usersModel.findOne({name:userName},
       {breakdowns: 1,userId:1,picture:1,points:1})
-    if(userBreaks === null) return res.json({type:'ERROR',msg:'user not found'})
+    if(userBreaks === null) return res.status(400).json({type:'ERROR',msg:'user not found'})
     let songsDigested = userBreaks.breakdowns.map(a => a.songId)
     let songs = await songsModel.find({songId: {$in:songsDigested}},
     {songId:1,songTitle:1,punchlines:1})
@@ -346,7 +364,7 @@ profileRoute.get('/api/p/my/breakdowns/:int',validate,async(req,res)=> {
                          breakdown: targetPunch.breakdowns[l].breakdown,
                          name: userName,
                          points: userBreaks.points,
-                         picture: userBreaks.picture,
+                         picture: process.env.IMAGEURL + userBreaks.picture,
                          id: targetPunch.breakdowns[l]._id,
                          date: targetPunch.breakdowns[l].date,
                          userVote: userId ? getUserVote(targetPunch.breakdowns[l].voters,userId)
@@ -370,8 +388,7 @@ profileRoute.get('/api/p/my/breakdowns/:int',validate,async(req,res)=> {
     userBreaksObjArray = userBreaksObjArray.slice(loaderCount,loaderCount+10)
     res.json({breakdowns:userBreaksObjArray,isEnd,nextFetch})
   } catch (e) {
-
-    res.json({type:'ERROR',msg:'something went wrong'})
+    return res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 
@@ -442,15 +459,14 @@ profileRoute.get('/api/p/songs/:name/:int',async(req,res)=> {
       otherArtists: song.otherArtists,
       favourited: song.favourited.length,
       isFav: userId ? song.favourited.some(a => a.userId === userId) : false,
-      songCover: song.songCover,
+      songCover: process.env.IMAGEURL + song.songCover,
     }
     })
     let isEnd  = (loaderCount + 9 >= songsCount) ? true : false
     let nextFetch = loaderCount + 9
     res.json({songs,nextFetch,isEnd})
   } catch (e) {
-
-    res.json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
 
   }
 })
@@ -474,23 +490,26 @@ function numberToKOrM(n) {
    }
 }
 
-profileRoute.get('/api/p/top-fans/:name',async (req,res)=>{
+profileRoute.get('/api/p/top-fans/:name/:fetch',async (req,res)=>{
   try{
-   let topFansId = await usersModel.findOne({name: req.params.name},{topFans:1})
-   let arr  = [];
-   for(let i = 0; i < topFansId.topFans.length; i++){
-     arr.push(topFansId.topFans[i].userId)
-   }
+   let {name,fetch} = req.params
+    fetch = parseInt(fetch)
+   const limit = 1000
+   let topFansId = await usersModel.aggregate([{$match: {name}},{$project:{topFans: {$slice:["$topFans",fetch,limit]}}}])
+   let arr  = topFansId[0].topFans.map(a => {
+      return a.userId
+   })
+
    let topFans  = await usersModel.find({userId:{$in: arr}},{name:1,userId:1,picture:1})
    let topFan = [];
-   for(let i = 0; i < topFansId.topFans.length; i++){
+   for(let i = 0; i < topFansId[0].topFans.length; i++){
       for(let j = 0; j < topFans.length; j++){
-        if(topFansId.topFans[i].userId === topFans[j].userId) {
+        if(topFansId[0].topFans[i].userId === topFans[j].userId) {
           topFan.push({
             name: topFans[j].name,
-            picture: topFans[j].picture,
-            points: topFansId.topFans[i].points,
-            atempts: topFansId.topFans[i].atempts
+            picture: process.env.IMAGEURL + topFans[j].picture,
+            points: topFansId[0].topFans[i].points,
+            atempts: topFansId[0].topFans[i].atempts
           })
           break;
         }
@@ -498,22 +517,23 @@ profileRoute.get('/api/p/top-fans/:name',async (req,res)=>{
    }
    let topFansSort = topFan.sort((a,b)=>(b.points - (b.atempts * 2))
    - (a.points - (a.atempts * 2)))
-    res.json(topFan.map(a => {
-      return {
-        name: a.name,
-        picture: a.picture,
-        points: a.points - (a.atempts * 2)
-      }
-    }))
+   let data = topFan.map(a => {
+     return {
+       name: a.name,
+       picture: a.picture,
+       points: a.points - (a.atempts * 2)
+     }
+   })
+    res.json({data: data, nextFetch: fetch + limit, isEnd: data.length < limit ? true : false})
  }catch(e){
 
-   res.json({type:'ERROR',msg:'something went wrong'})
+   res.status(500).json({type:'ERROR',msg:'something went wrong'})
  }
 })
 profileRoute.get('/api/my/profile',validate,async(req,res)=>{
   try {
   let data = await usersModel.findOne({userId: req.session.user.userId});
-  if(data === null ) return res.json({type:'ERROR',msg: 'something went wrong'})
+  if(data === null ) return res.status(400).json({type:'ERROR',msg: 'something went wrong'})
   let battles = await allBattlesModel.find({battleId: {$in: data.battles}})
   battles = battles.filter(a => a.battleOwner.userId && a.opponent.userId && a.battleOwner.userPoints !== 0 && a.opponent.userPoints !== 0)
   let battleRecords = getBattleRecords(battles,data.userId)
@@ -525,7 +545,7 @@ profileRoute.get('/api/my/profile',validate,async(req,res)=>{
     following: data.following.length,
     points: data.points,
     bio: data.bio,
-    picture: data.picture,
+    picture: process.env.IMAGEURL + data.picture,
     coins: data.userCoins,
     battleRecord: battleRecords
   }
@@ -555,13 +575,12 @@ profileRoute.get('/api/my/songs/',validate,async(req,res)=> {
       views: song.views.length,
       otherArtists: song.otherArtists,
       isFav: userId ? song.favourited.some(a => a.userId === userId) : false,
-      songCover: song.songCover,
+      songCover: process.env.IMAGEURL + song.songCover,
     }
     })
     res.json(songs)
   } catch (e) {
-
-    res.json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
 
   }
 })
@@ -633,8 +652,7 @@ profileRoute.post('/api/p/follow/:name',validate,async (req,res) => {
    }
 
  }catch(e){
-   console.log(e);
-   return res.json({type:'ERROR',msg:'something went wrong'})
+   return res.status(500).json({type:'ERROR',msg:'something went wrong'})
  }
 })
 

@@ -8,7 +8,7 @@ commentsRouter.get('/api/comments/:songId/:int',async(req,res)=> {
   try{
   const loadCount = parseInt(req.params.int)
   let song = await songsModel.findOne({songId: req.params.songId},{comments:1})
-  if(song === null) return res.json({type:'ERROR',msg:'song comments not found'})
+  if(song === null) return res.status(400).json({type:'ERROR',msg:'song comments not found'})
   let commentCount = song.comments.length;
    songDotComments = song.comments.sort((a,b)=> getLikes(b.likes)-getLikes(a.likes))
   let comments = song.comments.slice(loadCount,loadCount + 15);
@@ -22,7 +22,7 @@ commentsRouter.get('/api/comments/:songId/:int',async(req,res)=> {
     if(commentObj[`${commentsUsers[i].userId}`] === undefined){
       commentObj[`${commentsUsers[i].userId}`] = {}
       commentObj[`${commentsUsers[i].userId}`].name = commentsUsers[i].name;
-      commentObj[`${commentsUsers[i].userId}`].picture = commentsUsers[i].picture;
+      commentObj[`${commentsUsers[i].userId}`].picture = process.env.IMAGEURL + commentsUsers[i].picture;
       commentObj[`${commentsUsers[i].userId}`].points = commentsUsers[i].points;
 
     }
@@ -36,7 +36,7 @@ commentsRouter.get('/api/comments/:songId/:int',async(req,res)=> {
       comment: a.commentText,
       date: a.date,
       name: commentObj[`${a.userId}`].name,
-      picture: commentObj[`${a.userId}`].picture,
+      picture: process.env.IMAGEURL + commentObj[`${a.userId}`].picture,
       points: numberToKOrM(commentObj[`${a.userId}`].points),
       likes: getLikes(a.likes),
       id: a._id,
@@ -57,7 +57,7 @@ commentsRouter.get('/api/comments/:songId/:int',async(req,res)=> {
   res.json({comments,isEnd,nextFetch})
 }catch(e) {
 
-  res.json({type:'ERROR',msg: 'something went wrong'})
+  res.status(500).json({type:'ERROR',msg: 'something went wrong'})
 }
 })
 
@@ -89,13 +89,13 @@ function getUserReaction(likesArray,userId){
 commentsRouter.post('/api/comment/:songId',validate, async (req,res)=>{
   try {
     if(req.body.comment.length > 226) {
-      res.json({type:'ERROR',msg:"comment can't be longer than 226 characters"})
+      res.status(400).json({type:'ERROR',msg:"comment can't be longer than 226 characters"})
     }
     let song = await songsModel.findOne({songId: req.params.songId});
     let user = req.session.user.userId;
     if(song !== null){
       if(song.comments.length >= 500) {
-        return res.json({type:'ERROR',msg:'there are too many of those already'})
+        return res.status(403).json({type:'ERROR',msg:'there are too many of those already'})
       }
       let isDuplicate  = song.comments.some(a => a.userId === user &&
          req.body.comment.toLowerCase() === a.commentText.toLowerCase())
@@ -119,7 +119,7 @@ commentsRouter.post('/api/comment/:songId',validate, async (req,res)=>{
   userComment = userComment.map(a => {
       return {
         name: commUser.name,
-        picture: commUser.picture,
+        picture: process.env.IMAGEURL + commUser.picture,
         comment: a.commentText,
         date: a.date,
         likes: a.likes.length,
@@ -131,27 +131,27 @@ commentsRouter.post('/api/comment/:songId',validate, async (req,res)=>{
     })
       return res.json({type:'SUCCESS',msg:'comment sent',userComment})
     }else {
-      res.json({type:'ERROR',msg:'duplicate comment'})
+      res.status(403).json({type:'ERROR',msg:'duplicate comment'})
     }
     }else {
-     return res.json({type:'ERROR',msg:'song not found'})
+     return res.status(400).json({type:'ERROR',msg:'song not found'})
     }
   } catch (e) {
 
-    res.json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 
 commentsRouter.post('/api/comment-reactions/:songId/:commentId/:reaction',validate,async (req,res)=>{
      try {
        let {songId,commentId,reaction} = req.params;
-       if(reaction !== "LIKED" && reaction !== "DISLIKED") return res.json({type:'ERROR',msg:'invalid reaction'})
+       if(reaction !== "LIKED" && reaction !== "DISLIKED") return res.status(400).json({type:'ERROR',msg:'invalid reaction'})
        let userId = req.session.user.userId;
        if(songId === undefined || commentId === undefined || reaction === undefined){
-         return res.json({type:'ERROR',msg:'something went wrong'})
+         return res.status(400).json({type:'ERROR',msg:'something went wrong'})
        }
        let comment = await songsModel.findOne({songId,"comments._id":commentId},{userId:1,comments:1})
-       if(!comment) return res.json({type:'ERROR',msg:'song not found'})
+       if(!comment) return res.status(400).json({type:'ERROR',msg:'song not found'})
        let comm;
        for(let i = 0; i < comment.comments.length; i++) {
           if(comment.comments[i]._id.toString() === commentId) {
@@ -160,7 +160,7 @@ commentsRouter.post('/api/comment-reactions/:songId/:commentId/:reaction',valida
             break;
           }
        }
-       if(comm === undefined) return res.json({type:'ERROR',mgs:'comment not found'})
+       if(comm === undefined) return res.status(400).json({type:'ERROR',mgs:'comment not found'})
        if(comm.some(a => a.userId === userId)) {
          let remove = false;
          for(let i = 0; i < comm.length; i++) {
@@ -194,7 +194,7 @@ commentsRouter.post('/api/comment-reactions/:songId/:commentId/:reaction',valida
        }
      } catch (e) {
 
-       return res.json({type:'ERROR',msg:'something went wrong'})
+       return res.status(500).json({type:'ERROR',msg:'something went wrong'})
      }
 })
 
@@ -211,42 +211,42 @@ commentsRouter.post('/api/delete/comment/:songId/:commentId',validate,async(req,
           }
        }
         if(comm.userId === undefined) {
-          return res.json({type:'ERROR',msg:'deleted already'})
+          return res.status(403).json({type:'ERROR',msg:'deleted already'})
         }
        if(comm.userId === req.session.user.userId){
         let re = await songsModel.updateOne({songId},
          {$pull:{comments: {_id:commentId}}})
          res.json({type:'SUCCESS',msg:'comment deleted'})
        }else {
-         res.json({type:'ERROR',msg:"can't perform this action"})
+         res.status(401).json({type:'ERROR',msg:"can't perform this action"})
        }
 
      } else {
-       res.json({type:'ERROR',msg:'song not found'})
+       res.status(400).json({type:'ERROR',msg:'song not found'})
      }
    }catch (e) {
 
-       res.json({type:'ERROR',msg:'something went wrong'})
+       res.status(500).json({type:'ERROR',msg:'something went wrong'})
      }
 })
 
 commentsRouter.post("/api/award-comment",validate,async(req,res)=> {
   try {
       let {awardsGiven,songId,commentId} = req.body
-      if(!awardsGiven || !songId || !commentId) return res.json({type:'ERROR',msg: "missing some request bodies"})
+      if(!awardsGiven || !songId || !commentId) return res.status(400).json({type:'ERROR',msg: "missing some request bodies"})
       const userId = req.session.user.userId
       awardsGiven = awardsGiven.filter(a => {
         return ["platinum","diamond","gold","silver","bronze","copper"].includes(a)
       })
-      if(awardsGiven.length < 1) return res.json({type:'ERROR',msg:'no valid award selected'})
+      if(awardsGiven.length < 1) return res.status(400).json({type:'ERROR',msg:'no valid award selected'})
       const numOfCoins = getNumberOfCoins(awardsGiven)
       let userCoins = await usersModel.findOne({userId},{userCoins:1})
       userCoins = userCoins.userCoins
       if(userCoins !== undefined && userCoins < numOfCoins) {
-        return res.json({type:'ERROR',msg:'more coins required'})
+        return res.status(401).json({type:'ERROR',msg:'more coins required'})
       }
       const comments = await songsModel.findOne({songId},{comments:1})
-      if(comments == null) return res.json({type:'ERROR', msg:'something went wrong'})
+      if(comments == null) return res.status(400).json({type:'ERROR', msg:'something went wrong'})
       let comm;
       for(let i = 0; i < comments.comments.length; i++) {
          if(comments.comments[i]._id.toString() === commentId) {
@@ -255,7 +255,7 @@ commentsRouter.post("/api/award-comment",validate,async(req,res)=> {
          }
       }
       const commUserId = comm.userId
-      if(userId === commUserId) return res.json({type:'ERROR',msg:"can't perform this actions"})
+      if(userId === commUserId) return res.status(400).json({type:'ERROR',msg:"can't perform this actions"})
       let awardNotifOjb = {userId, songId, type: "comment",
                                 brORcommentId: commentId, award: awardsGiven.join(",")}
       let awards = comm.awards
@@ -277,14 +277,14 @@ commentsRouter.post("/api/award-comment",validate,async(req,res)=> {
                                         {$set:{"comments.$.awards":awards}},{session})
         })
       }catch(e) {
-        return res.json({type:'ERROR',msg:"award comment not successful"})
+        return res.status(500).json({type:'ERROR',msg:"award comment not successful"})
       }finally {
          session.endSession()
       }
       res.json({type:'SUCCESS',msg:'comment awarded'})
   } catch (e) {
 
-    res.json({type:'ERROR',msg: "something went wrong"})
+    res.status(500).json({type:'ERROR',msg: "something went wrong"})
   }
 })
 

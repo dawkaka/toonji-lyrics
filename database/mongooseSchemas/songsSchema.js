@@ -1,14 +1,11 @@
 const mongoose = require('mongoose');
 
-try{
-mongoose.connect(process.env.DB_HOST_ATLAS, {
+mongoose.connect(process.env.DB_HOST, {
  useNewUrlParser: true,
  useUnifiedTopology: true,
  useCreateIndex: true
 });
-}catch(e){
-  console.log(e);
-}
+
 const Schema = mongoose.Schema;
 const punchlineBreakdown = new Schema({
   userId: String,
@@ -53,7 +50,11 @@ const punchlinesSchema = new Schema({
    userId: String,
    date: Date
  }],
- breakdowns: [punchlineBreakdown]
+ breakdowns: [punchlineBreakdown],
+ hasIcons: {
+   type: Boolean,
+   default: true
+ }
 })
 
 const commentSchema = new Schema({

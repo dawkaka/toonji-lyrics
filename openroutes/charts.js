@@ -30,7 +30,7 @@ try{
        rating: rating,
        view: numberToKOrM(a.views.length),
        otherArtists: a.otherArtists,
-       songCover: a.songCover
+       songCover: process.env.IMAGEURL + a.songCover
      }
      return newObj
    })
@@ -55,7 +55,7 @@ try{
        rating: rating,
        view: numberToKOrM(a.views.length),
        otherArtists: a.otherArtists,
-       songCover: a.songCover
+       songCover: process.env.IMAGEURL + a.songCover
      }
      return newObj
    })
@@ -80,7 +80,7 @@ try{
        rating: rating,
        view: numberToKOrM(a.views.length),
        otherArtists: a.otherArtists,
-       songCover: a.songCover
+       songCover: process.env.IMAGEURL + a.songCover
      }
      return newObj
    })
@@ -132,14 +132,14 @@ try{
      res.json({allTime,day,week})
   }
    if(param === "Users") {
-    let users = await usersModel.find({verified:false},{picture:1,points:1,name:1,followers:1})
+    let users = await usersModel.find({verified:false},{picture:1,points:1,name:1,followers:1,_id:0})
     users = users.sort((a,b)=> {
       return (b.points + b.followers.length) - (a.points + a.followers.length)
     })
     let data = users.splice(0,25);
      data = data.map(a=> {
        return {
-         picture: a.picture,
+         picture: process.env.IMAGEURL + a.picture,
          name: a.name,
          points: numberToKOrM(a.points),
          followers: numberToKOrM(a.followers.length)
@@ -147,11 +147,142 @@ try{
      })
     return res.json(data)
    }
+
+  if(param === "Artists") {
+    let users = await usersModel.find({verified:true},{picture:1,points:1,name:1,followers:1,_id:0})
+
+    users = users.sort((a,b)=> {
+      return (b.points + b.followers.length) - (a.points + a.followers.length)
+    })
+
+    users = users.map( a => {
+      return {
+        picture: process.env.IMAGEURL + a.picture,
+        name: a.name,
+        points: numberToKOrM(a.points),
+        followers: numberToKOrM(a.followers.length)
+      }
+    })
+    return res.json(users)
+  }
+ res.status(400).json({type:'ERROR', message: 'something went wrong'})
 }catch(e) {
   console.log(e);
-  res.json({type:'ERROR',msg:'something went wrong'})
+  res.status(500).json({type:'ERROR',msg:'something went wrong'})
 }
 });
+
+
+
+chartsRoute.get('/api/m/charts/:chartParam/:filter',async (req,res)=> {
+try{
+ const param = req.params.chartParam
+ const filter = req.params.filter
+ if(param === "Songs"){
+   const data = await songsModel.find({},{songId:1,songTitle:1,songArtist:1,
+   otherArtists:1,raters:1,views:1,songCover:1});
+
+    let target = data.sort((a,b)=> {
+     let now = new Date()
+     let elemRatingA = getRating(a,filter,now);
+     let elemRatingB = getRating(b,filter,now)
+     let elemViewsA = getViews(a,filter,now)
+     let elemViewsB = getViews(b,filter,now)
+     elemRatingA = ratingValue(elemRatingA)
+     elemRatingB = ratingValue(elemRatingB)
+     b.determinePosition = elemViewsB + elemRatingB
+     a.determinePosition = elemViewsA + elemRatingA
+     return b.determinePosition - a.determinePosition
+   }).map(a => {
+     let rating = getRating(a.raters,'ALL-TIME',new Date())
+     let newObj = {
+       songTitle: a.songTitle,
+       lyricId: a.songId,
+       songArtist: a.songArtist,
+       rating: rating,
+       view: numberToKOrM(a.views.length),
+       otherArtists: a.otherArtists,
+       songCover: process.env.IMAGEURL + a.songCover
+     }
+     return newObj
+   })
+
+   res.json(target.splice(0,20));
+   return
+ }
+
+   if(param === "Punchlines") {
+     const songs = await songsModel.find({})
+     const topBars = getTopPunches(songs)
+     let filter2;
+     switch (filter) {
+       case 'TODAY':
+          filter2 = topBars.day
+         break;
+        case 'WEEK':
+          filter2 = topBars.week
+       default:
+         filter2 = topBars.allTime
+     }
+
+     let tData = topBars.allTime.map(a => {
+       return {
+         punchline: a.punchline,
+         songId: a.songId,
+         songTitle: a.songTitle,
+         artist: a.artist,
+         otherArtists: a.otherArtists,
+         fires: a.raters.length,
+         songArtist: a.songArtist,
+         punchlineId: a._id
+       }
+     })
+
+     res.json(tData)
+     return
+  }
+   if(param === "Users") {
+    let users = await usersModel.find({verified:false},{picture:1,points:1,name:1,followers:1,_id:0})
+    users = users.sort((a,b)=> {
+      return (b.points + b.followers.length) - (a.points + a.followers.length)
+    })
+    let data = users.splice(0,25);
+     data = data.map(a=> {
+       return {
+         picture: process.env.IMAGEURL + a.picture,
+         name: a.name,
+         points: numberToKOrM(a.points),
+         followers: numberToKOrM(a.followers.length)
+       }
+     })
+    return res.json(data)
+   }
+
+  if(param === "Artists") {
+    let users = await usersModel.find({verified:true},{picture:1,points:1,name:1,followers:1,_id:0})
+
+    users = users.sort((a,b)=> {
+      return (b.points + b.followers.length) - (a.points + a.followers.length)
+    })
+
+    users = users.map( a => {
+      return {
+        picture: process.env.IMAGEURL + a.picture,
+        name: a.name,
+        points: numberToKOrM(a.points),
+        followers: numberToKOrM(a.followers.length)
+      }
+    })
+    return res.json(users)
+  }
+ res.status(400).json({type:'ERROR',msg:'invalid selection'})
+}catch(e) {
+  console.log(e);
+  res.status(500).json({type:'ERROR',msg:'something went wrong'})
+}
+});
+
+
 
 function getTopPunches(songs) {
  let barsObj = {allTime: [],week: [],day: []}

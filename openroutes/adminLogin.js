@@ -10,23 +10,17 @@ adminLoginRoute.post('/api/c/contributor-login',async (req,res)=>{
 
   if(req.session.loginNextTry > Date.now()) {
     let newTime = new Date(req.session.loginNextTry - Date.now()).getMinutes()
-    return res.json({type:'ERROR',msg: "try again in " + `${newTime + 1}` + " minutes"})
+    return res.status(401).json({type:'ERROR',msg: "try again in " + `${newTime + 1}` + " minutes"})
   }
 
    const {name,password} = req.body;
    if(name === undefined || password === undefined) {
-     return res.json({type: 'ERROR',msg:'missing request body parts'})
+     return res.status(400).json({type: 'ERROR',msg:'missing request body parts'})
    }
    let salt = await bcrypt.genSalt(10);
    hashedPassword = await bcrypt.hash(password + process.env.STRTNPWD,salt);
-    let admin;
-   try {
-     admin = await adminsModel.findOne({name})
-   } catch (e) {
-     return res.json({type:'ERROR',msg:'someting went wrong'})
-   }
-
-  if(!admin) return res.json({type:'ERROR',msg:'admin not found'})
+    let admin = await adminsModel.findOne({name})
+  if(!admin) return res.status(400).json({type:'ERROR',msg:'admin not found'})
 
    let isValidPassword = await bcrypt.compare(password + process.env.STRTNPWD,admin.password)
     if(isValidPassword){
@@ -42,7 +36,7 @@ adminLoginRoute.post('/api/c/contributor-login',async (req,res)=>{
         req.session.loginNextTry = Date.now() + (1000 * 60 * req.session.loginAttempts)
       }
     }
-    res.json({type:'ERROR',msg:'invalid login credentials'})
+    res.status(400).json({type:'ERROR',msg:'invalid login credentials'})
 });
 
 function generateID(n = 11) {

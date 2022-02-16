@@ -21,7 +21,7 @@ breakdownsRouter.get('/api/breakdowns/:songId/:barIndx',async(req,res)=>{
        if(breakdownObj[`${digests[i].userId}`] === undefined){
          breakdownObj[`${digests[i].userId}`] =  {};
          breakdownObj[`${digests[i].userId}`].name = digests[i].name;
-         breakdownObj[`${digests[i].userId}`].picture = digests[i].picture;
+         breakdownObj[`${digests[i].userId}`].picture = process.env.IMAGEURL + digests[i].picture;
          breakdownObj[`${digests[i].userId}`].points = digests[i].points;
 
        }
@@ -32,7 +32,7 @@ breakdownsRouter.get('/api/breakdowns/:songId/:barIndx',async(req,res)=>{
        if(breakdownObj[b.userId] !== undefined){
          let obj = {
            name: breakdownObj[b.userId].name,
-           picture: breakdownObj[b.userId].picture,
+           picture: process.env.IMAGEURL + breakdownObj[b.userId].picture,
            points: numberToKOrM(breakdownObj[b.userId].points),
            id: b._id,
            breakdown: b.breakdown,
@@ -53,10 +53,10 @@ breakdownsRouter.get('/api/breakdowns/:songId/:barIndx',async(req,res)=>{
      })
      return res.json(breakdowns)
    }else {
-     res.json({type:'ERROR',msg:'song not found'})
+     res.status(400).json({type:'ERROR',msg:'song not found'})
    }
  }catch(e) {
-   res.json({type:'ERROR',msg:'something went wrong'})
+   res.status(500).json({type:'ERROR',msg:'something went wrong'})
  }
 })
 
@@ -65,7 +65,7 @@ breakdownsRouter.post('/api/breakdown/:songId/:barIndx',validate,async (req,res)
       const breakdown = req.body.breakdown.toString().trim()
 
      if(breakdown.length > 500) {
-       res.json({type:'ERROR',msg:"breakdown can't be longer than 500 characters"})
+       res.status(400).json({type:'ERROR',msg:"breakdown can't be longer than 500 characters"})
      }
      let user = req.session.user.userId
      let {songId,barIndx} = req.params;
@@ -76,7 +76,7 @@ breakdownsRouter.post('/api/breakdown/:songId/:barIndx',validate,async (req,res)
          === a.breakdown.toLowerCase())
          if(!isDuplicate){
              if(song.punchlines[barIndx].breakdowns.length > 10){
-               return  res.json({type:'ERROR',msg:"can't add more breakdowns at this time"})
+               return  res.status(400).json({type:'ERROR',msg:"can't add more breakdowns at this time"})
              }
            let punchId = song.punchlines[barIndx]._id;
           let result = await songsModel.updateOne(
@@ -115,13 +115,13 @@ breakdownsRouter.post('/api/breakdown/:songId/:barIndx',validate,async (req,res)
          }
          return res.json({type:'SUCCESS',msg:'breakdown sent'})
        }else {
-         return res.json({type:'ERROR',msg:'no duplicate breakdowns'})
+         return res.status(400).json({type:'ERROR',msg:'no duplicate breakdowns'})
        }
      }else {
-       return res.json({type:'ERROR',msg:'lyrics not found'})
+       return res.status(400).json({type:'ERROR',msg:'lyrics not found'})
      }
    }catch(e){
-     res.json({type:'ERROR',msg:'something went wrong'})
+     res.status(500).json({type:'ERROR',msg:'something went wrong'})
    }
 })
 
@@ -130,7 +130,7 @@ validate,async (req,res)=>{
   try {
      let {songId, barIndx,vote,breakdownId} = req.params;
       barIndx = parseInt(barIndx);
-     if(vote !== "UPVOTE" && vote != "DOWNVOTE") return res.json({type:'ERROR',msg:'invalid vote type'})
+     if(vote !== "UPVOTE" && vote != "DOWNVOTE") return res.status(400).json({type:'ERROR',msg:'invalid vote type'})
      let userId = req.session.user.userId;
      let song = await songsModel.findOne({songId},{punchlines: 1})
      if(song !== null) {
@@ -186,14 +186,14 @@ validate,async (req,res)=>{
         }
        res.json({type:'SUCCESS',msg:`${vote}`})
      }else {
-       return res.json({type:'ERROR',msg:'no double votes'})
+       return res.status(403).json({type:'ERROR',msg:'no double votes'})
      }
      }else {
-       res.json({type:'ERROR',msg:'song not found'})
+       res.status(400).json({type:'ERROR',msg:'song not found'})
      }
    } catch (e) {
 
-     res.json({type:'ERROR',msg:'something went wrong'})
+     res.status(500).json({type:'ERROR',msg:'something went wrong'})
    }
 })
 
@@ -214,14 +214,14 @@ async(req,res)=> {
           {$pull: {"punchlines.$.breakdowns": {_id:bId}}})
           res.json({type:'SUCCESS',msg:'breakdown deleted'})
       }else {
-        res.json({type:'ERROR',msg:"can't perform this action"})
+        res.status(401).json({type:'ERROR',msg:"can't perform this action"})
       }
     }else {
-      res.json({type:'ERROR',msg:'song not found'})
+      res.status(400).json({type:'ERROR',msg:'song not found'})
     }
   } catch (e) {
 
-    res.json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 
@@ -234,14 +234,14 @@ breakdownsRouter.post("/api/award-breakdown",validate,async(req,res)=> {
     awardsGiven = awardsGiven.filter(a => {
       return ["platinum","diamond","gold","silver","bronze","copper"].includes(a)
     })
-    if(awardsGiven.length < 1) return res.json({type:'ERROR',msg:'no valid award selected'})
+    if(awardsGiven.length < 1) return res.status(400).json({type:'ERROR',msg:'no valid award selected'})
     const numOfCoins = getNumberOfCoins(awardsGiven)
     if(userCoins !== undefined && userCoins < numOfCoins) {
-      return res.json({type:'ERROR',msg:'more coins required'})
+      return res.status(401).json({type:'ERROR',msg:'more coins required'})
     }
     const song = await songsModel.findOne({songId})
     if(song === null) {
-      return res.json({type:'ERROR',msg:'something went wrong'})
+      return res.status(500).json({type:'ERROR',msg:'something went wrong'})
     }
     let punch;
     for(let i = 0; i < song.punchlines.length; i++) {
@@ -250,16 +250,16 @@ breakdownsRouter.post("/api/award-breakdown",validate,async(req,res)=> {
         break;
       }
     }
-    if(!punch) return res.json({type:'ERROR',msg:'something went wrong'})
+    if(!punch) return res.status(400).json({type:'ERROR',msg:'something went wrong'})
     let breakdown;
     for(let i = 0; i < punch.breakdowns.length; i++){
       if (punch.breakdowns[i]._id.toString() === brId) {
         breakdown = punch.breakdowns[i]
       }
     }
-    if(!breakdown) return res.json({type:'ERROR',msg:'something went wrong'})
+    if(!breakdown) return res.status(400).json({type:'ERROR',msg:'something went wrong'})
     const brUserId = breakdown.userId
-    if(userId === brUserId) return res.json({type:'ERROR',msg:"can't perform this actions"})
+    if(userId === brUserId) return res.status(401).json({type:'ERROR',msg:"can't perform this actions"})
 
     let awardsNotifObj = {userId, songId,punchlineId: punch._id, type: "breakdown",
                          brORcommentId: brId, award: awardsGiven.join(",")}
@@ -286,7 +286,7 @@ breakdownsRouter.post("/api/award-breakdown",validate,async(req,res)=> {
                {$set:{"punchlines.$.breakdowns": breakdowns}},{session})
            })
          }catch(e){
-           return res.json({type:'ERROR',msg:"award breakdown not successful"})
+           return res.status(500).json({type:'ERROR',msg:"award breakdown not successful"})
          } finally {
             session.endSession()
          }
@@ -294,7 +294,7 @@ breakdownsRouter.post("/api/award-breakdown",validate,async(req,res)=> {
 
       } catch (e) {
         console.log(e);
-        res.json({type:'ERROR',msg:'something went wrong'})
+        res.status(500).json({type:'ERROR',msg:'something went wrong'})
       }
     })
 
@@ -318,13 +318,13 @@ breakdownsRouter.post('/api/edit-breakdown/:songId/:pId/:bId',validate,async(req
            {$set: {"punchlines.$.breakdowns": searchBreakdowns}})
            res.json({type:'SUCCESS',msg:'breakdown updated'})
        }else {
-         res.json({type:'ERROR',msg:"can't perform this action"})
+         res.status(401).json({type:'ERROR',msg:"can't perform this action"})
        }
     }else {
-      return res.json({type:'ERROR',msg: 'song not found'})
+      return res.status(400).json({type:'ERROR',msg: 'song not found'})
     }
   } catch (e) {
-    res.json({type:'ERROR',msg:'something went wrong'})
+    res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 
