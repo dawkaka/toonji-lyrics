@@ -63,10 +63,11 @@ quizRouter.post('/api/top-fan/:name/:points',validate,async (req,res)=>{
               break;
             }
          }
+
          let insertResult = await usersModel.updateOne({name,"topFans.userId":userId},
-           {$set: {
-             "topFans.$.points": prevPoints + points,
-             "topFans.$.atempts": prevAtempts + 10}})
+           {$inc: {
+             "topFans.$.points": points,
+             "topFans.$.atempts": 10}})
              req.session.user.questionsToken = ""
            return res.json({type:'SUCCESS',msg:'points submited'})
        }
