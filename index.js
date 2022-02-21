@@ -120,11 +120,10 @@ io.of("/api-battle").on('connection',socket => {
   socket.on("get-questions", async roomId => {
     //genearte questions and sent to all connected users in the room
     const target = await battlesModel.findOne({battleId:roomId},{artists:1})
-    console.log(target)
-    const songs = await songsModel.find({songArtist:{$in: target.artists}},{songTitle: 1, otherArtists: 1, punchlines: 1, songArtist: 1})
-    console.log(songs)
-    let questions = [];
 
+    const songs = await songsModel.find({songArtist:{$in: target.artists}},{songTitle: 1, otherArtists: 1, punchlines: 1, songArtist: 1})
+
+    let questions = [];
     if(songs && songs.length > 0) questions = generateQuestions(songs)
     if(questions && questions.length === 10) {
       await battlesModel.updateOne({battleId:roomId},{$set:{battleInProcess: true}})
@@ -250,6 +249,7 @@ io.of("/api-battle").on('connection',socket => {
             oppName = userNames[i].name
           }
         }
+        console.log(oppName, ownerName)
          io.of("/api-battle").to(battleOwner.socketId).emit("all-set",oppName)
          io.of("/api-battle").to(opponent.socketId).emit("set",ownerName)
        }else {
@@ -338,7 +338,7 @@ function generateQuestions(songs) {
         continue
     }
   }
-  console.log(generateQuestions)
+
   return generatedQuestions
 }
 
