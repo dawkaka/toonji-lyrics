@@ -110,7 +110,7 @@ io.of("/api-battle").on('connection',socket => {
    }
     socket.leave(room)
     let rooms = io.of("/api-battle").adapter.rooms.get(room)
-     if (!rooms || rooms.size === 1) {
+     if (!rooms || rooms.size <= 1) {
        await battlesModel.updateOne({battleId:room},{$set:{battleInProcess:false,connectedUsers:[]}})
      }else {
        socket.to(room).emit("opponent-disconnected",socket.id)
@@ -119,9 +119,12 @@ io.of("/api-battle").on('connection',socket => {
 
   socket.on("get-questions", async roomId => {
     //genearte questions and sent to all connected users in the room
-    const target = battlesModel.findOne({battleId:roomId},{artists:1})
-    const songs = await songsModel.find({songArtist:{$in: target.artists}})
+    const target = await battlesModel.findOne({battleId:roomId},{artists:1})
+    console.log(target)
+    const songs = await songsModel.find({songArtist:{$in: target.artists}},{songTitle: 1, otherArtists: 1, punchlines: 1, songArtist: 1})
+    console.log(songs)
     let questions = [];
+
     if(songs && songs.length > 0) questions = generateQuestions(songs)
     if(questions && questions.length === 10) {
       await battlesModel.updateOne({battleId:roomId},{$set:{battleInProcess: true}})
@@ -282,10 +285,11 @@ function generateQuestions(songs) {
   let generatedQuestions = []
   let gLength = 0;
   for(let i = 0; gLength < 10 ; i++) {
+
     let randomSong = songs[Math.floor(Math.random() * songs.length)]
     const qTitles = [`What ${randomSong.songArtist} song was this said ?`,
       'Complete the lyrics'];
-    if(randomSong.otherArtists !== "") {
+    if(randomSong.otherArtists && randomSong.otherArtists !== "") {
       qTitles.push(`Which artist said this on the song ${randomSong.songTitle} ?`)
     }
     let currentQuestion = qTitles[Math.floor(Math.random() * qTitles.length)];
@@ -334,6 +338,7 @@ function generateQuestions(songs) {
         continue
     }
   }
+  console.log(generateQuestions)
   return generatedQuestions
 }
 
