@@ -286,7 +286,7 @@ breakdownsRouter.post("/api/award-breakdown",validate,async(req,res)=> {
                {$set:{"punchlines.$.breakdowns": breakdowns}},{session})
            })
          }catch(e){
-           return res.status(500).json({type:'ERROR',msg:"award breakdown not successful"})
+           return res.status(500).json({type:'ERROR',msg:"Award breakdown not successful"})
          } finally {
             session.endSession()
          }

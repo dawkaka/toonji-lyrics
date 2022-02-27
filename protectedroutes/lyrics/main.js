@@ -32,7 +32,7 @@ lyricsRouter.post('/api/lyrics/rate/:numberOfStars/:lyricsId',validate,async(req
                             rate: rating,
                             dateRated: new Date()
             }}})
-           res.json(song)
+           res.json({msg: `${rating} stars!`})
       } catch (e) {
         res.status(500).json({type:'ERROR',msg:'something went wrong'})
       }

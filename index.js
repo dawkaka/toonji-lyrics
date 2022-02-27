@@ -100,17 +100,27 @@ app.use((req,res,next)=> {
 
 io.of("/api-battle").on('connection',socket => {
 
-  socket.on("disconnect", async () => {
+  socket.on("disconnecting", async () => {
+
    let room;
-   for (let key of socket.adapter.rooms.keys()) {
-     if(key !== socket.id) {
-       room = key
-       break;
+   let socketId
+   for (let key of socket.adapter.sids.keys()) {
+     if(socket.id === key) {
+       socketId = key
+       break
      }
    }
-    socket.leave(room)
+
+   for (let key of socket.adapter.sids.get(socketId)) {
+      if(key !== socket.id) {
+        room = key
+         break
+      }
+   }
+
+   socket.leave(room)
     let rooms = io.of("/api-battle").adapter.rooms.get(room)
-     if (!rooms || rooms.size <= 1) {
+     if (!rooms) {
        await battlesModel.updateOne({battleId:room},{$set:{battleInProcess:false,connectedUsers:[]}})
      }else {
        socket.to(room).emit("opponent-disconnected",socket.id)
@@ -180,11 +190,11 @@ io.of("/api-battle").on('connection',socket => {
     //check if linkid id valid
     const battleLink = await battlesModel.findOne({battleId: roomId})
     if(!battleLink || Date.now() - battleLink.createdDate > 24 * 60 * 60 * 1000) {
-      io.of("/api-battle").to(socket.id).emit("invalid link","invalid or expired link")
+      io.of("/api-battle").to(socket.id).emit("invalid link","Invalid or expired link")
       return
     }
     if(battleLink.battleInProcess) {
-      io.of("/api-battle").to(socket.id).emit("in-process","there's a battle in process on this link")
+      io.of("/api-battle").to(socket.id).emit("in-process","There's a battle in process on this link")
       return
     }
     //check if user is logged in
@@ -249,7 +259,7 @@ io.of("/api-battle").on('connection',socket => {
             oppName = userNames[i].name
           }
         }
-        console.log(oppName, ownerName)
+
          io.of("/api-battle").to(battleOwner.socketId).emit("all-set",oppName)
          io.of("/api-battle").to(opponent.socketId).emit("set",ownerName)
        }else {

@@ -39,7 +39,7 @@ loginRoute.post('/api/login',async (req,res)=> {
 
    res.cookie('contributor',findName.isContributor,{
      httpOnly: false,
-     maxAge: 1000 * 60 * 60 * 3,
+     maxAge: 1000 * 60 * 60 * 24 * 7,
      SameSite: "None"
    })
 

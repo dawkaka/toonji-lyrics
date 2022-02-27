@@ -56,7 +56,7 @@ signupRoute.post('/api/signup',async (req,res)=> {
        isLoggedIn: true
      };
 
-     res.cookie('_user_id',userId.name, { signed: true });
+     res.cookie('_user_id',userId.name, {maxAge: 1000 * 60 * 60 * 24 * 7});
      return   res.json({type:"SUCCESS",msg:"registered successfully"})
     } catch (e) {
       res.status(500).json({type:'ERROR',msg:'something went wrong'})

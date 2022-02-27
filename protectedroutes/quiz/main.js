@@ -99,7 +99,7 @@ quizRouter.post("/api/battle/battle-link",validate, async(req,res) => {
           battleStarted: false
         })
         await battle.save()
-        res.json({battleId: linkId})
+        res.json({battleId: linkId, artists})
       } catch (e) {
         console.log(e);
         res.status(500).json({type:'ERROR',msg:'something went wrong'})
