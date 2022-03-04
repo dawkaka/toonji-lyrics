@@ -3,12 +3,17 @@ const homeRoute = express.Router();
 const songsModel = require('../database/mongooseSchemas/songsSchema');
 const usersModel = require('../database/mongooseSchemas/usersSchema')
 
-const stripe = require('stripe')
 homeRoute.get('/api',async (req,res)=> {
   try {
-
-    let songs = await songsModel.find({}).sort({uploadDate:-1});
     let userId = req.session.user ? req.session.user.userId : false;
+    let seen = [];
+    if(userId) {
+      let viewed = await usersModel.findOne({userId},{viewed: 1})
+      seen = viewed.viewed.map(a => a.songId)
+      seen = Array.from(new Set(seen))
+    }
+    
+    let songs = await songsModel.find({songId: {$nin: seen}}).sort({uploadDate:-1});
     let recommended = getTopNine(songs,getRating,9)
     let newArrivals = songs.splice(0,9)
     recommended = recommended.map(song => {

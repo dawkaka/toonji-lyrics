@@ -22,6 +22,11 @@ const awardNotifSchema = new Schema({
   award:String
 })
 
+const viewedSchema = new Schema({
+  songId: String,
+  date: Date
+})
+
 const usersSchema = new Schema({
   name: {
     type:String,
@@ -80,6 +85,7 @@ const usersSchema = new Schema({
   favouriteBars: [barsSchema],
   following: [String],
   favouriteGenres: [String],
+  viewed: [viewedSchema],
   breakdowns: [breakdownsSchema],
   battles: [String]
 });

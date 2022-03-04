@@ -6,13 +6,19 @@ const validate = require('../validate');
 
 lyricsRouter.post('/api/lyrics/viewed/:lyricsId',async(req,res)=>{
       try {
+          const date = new Date()
+          const userId = req.session.user.userId || undefined
           await songsModel.updateOne({songId: req.params.lyricsId},
-          {$push: {views: new Date()}});
+          {$push: {views: date}});
+
+         if(userId) {
+           await usersModel.updateOne({userId},{$addToSet:{viewed:{songId: req.params.lyricsId, date: date}}})
+         }
 
       } catch (e) {
         return res.status(400).json({type:'ERROR',msg:'something went wrong'})
       }
-    res.json({type:"SUCCESS",msg:"view counted"})
+      res.json({type:"SUCCESS",msg:"view counted"})
 })
 
 lyricsRouter.post('/api/lyrics/rate/:numberOfStars/:lyricsId',validate,async(req,res)=>{
