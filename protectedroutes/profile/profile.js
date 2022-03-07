@@ -19,6 +19,21 @@ profileRoute.post('/api/p/log-out',async(req,res)=> {
   }
 })
 
+
+profileRoute.get('/api/p/notifications-count',async(req,res)=> {
+    try {
+      if(!req.session.user) return res.json({count: 0})
+
+      let userNotifs = await usersModel.findOne({userId: req.session.user.userId},
+                                                   {notifications:1})
+      const {awards,likes, others, upvotes,followers} = userNotifs.notifications
+      res.json({count: awards.length + others.length + upvotes.length + followers.length})
+    } catch (e) {
+      console.log(e)
+      res.status(500).json({type:'ERROR', msg: 'something went wrong'})
+    }
+})
+
 profileRoute.get('/api/p/notifications',validate,async(req,res)=> {
   try {
   let userNotifs = await usersModel.findOne({userId: req.session.user.userId},
