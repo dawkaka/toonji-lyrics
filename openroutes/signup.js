@@ -22,17 +22,17 @@ signupRoute.post('/api/signup',async (req,res)=> {
   }
 
   name = name.toString().trim()
-  email = email.toString().trim()
+  email = email.toString().trim().toLowerCase()
   password = password.toString().trim()
 
   try {
-    user = await usersModel.findOne({$or: [{name},{email}]});
+    user = await usersModel.findOne({$or: [{name: {$in:[name,name.toLowerCase()]}},{email}]});
   } catch (e) {
-     res.status(500).json({type:'ERROR',msg:"something went wrong"})
+     res.status(500).json({type:'ERROR',msg:"Something went wrong"})
   }
   if(user) {
-    return user.name === name ?  res.json({type:"ERROR",msg: "name already exist"}) :
-     res.json({type:"ERROR",msg: "email already exist"})
+    return user.email === email ?  res.status(400).json({type:"ERROR",msg: "Email already exist"}) :
+     res.status(400).json({type:"ERROR",msg: "Name already exist"})
   }else {
 
     let hashedPassword = '';

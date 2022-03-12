@@ -14,7 +14,6 @@ profileRoute.post('/api/p/log-out',async(req,res)=> {
     res.clearCookie("_user_id")
     res.json({type:'SUCCESS',msg:'loged out'})
   } catch (e) {
-
     res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
@@ -27,7 +26,7 @@ profileRoute.get('/api/p/notifications-count',async(req,res)=> {
       let userNotifs = await usersModel.findOne({userId: req.session.user.userId},
                                                    {notifications:1})
       const {awards,likes, others, upvotes,followers} = userNotifs.notifications
-      res.json({count: awards.length + others.length + upvotes.length + followers.length})
+      res.json({count: likes.length + awards.length + others.length + upvotes.length + followers.length})
     } catch (e) {
       console.log(e)
       res.status(500).json({type:'ERROR', msg: 'something went wrong'})

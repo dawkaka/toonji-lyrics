@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken')
 loginRoute.post('/api/login',async (req,res)=> {
   if(req.session.loginNextTry > Date.now()) {
     let newTime = new Date(req.session.loginNextTry - Date.now()).getMinutes()
-    return res.status(400).json({type:'ERROR',msg: "try again in " + `${newTime + 1}` + " minutes"})
+    return res.status(400).json({type:'ERROR',msg: "Try again in " + `${newTime + 1}` + " minutes"})
   }
  let {name, password}  = req.body;
  if(name === undefined || password === undefined){
@@ -16,7 +16,7 @@ loginRoute.post('/api/login',async (req,res)=> {
  }
  let findName = await usersModel.findOne({name},{email:1,password:1,name:1,userId:1,isContributor:1});
  if(findName === null) {
-   return res.status(400).json({type:"ERROR",msg:'check name and try again'})
+   return res.status(400).json({type:"ERROR",msg:'Check name and try again'})
  }
 
  let isValidPassword = await bcrypt.compare(password + process.env.STRTNPWD, findName.password) || await bcrypt.compare(password, findName.password)
