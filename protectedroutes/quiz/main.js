@@ -36,39 +36,29 @@ quizRouter.post('/api/top-fan/:name/:points',validate,async (req,res)=>{
        let {name,points} = req.params;
        points = parseInt(points) || 0
        let userId = req.session.user.userId
-       let user = await usersModel.findOne({name})
-       if(user === null) return res.status(400).json({type:'ERROR',msg:'artist not found'})
-       let alreadyInTopFans = user.topFans.some(a => a.userId === userId)
-       let prevAtempts = 0
-       for(let i = 0; i < user.topFans.length; i++){
-          if(user.topFans[i].userId === userId){
-            prevAtempts = user.topFans[i].atempts
-            break;
-          }
-        }
-       if(!alreadyInTopFans) {
+       let user = await usersModel.findOne({name, topFans: {$elemMatch: {userId}}})
+       console.log(user)
+       //if(user === null) return res.status(400).json({type:'ERROR',msg:'artist not found'})
+       points = points / 10 || 0
+        console.log(points)
+       if(!user) {
          let insertResult = await usersModel.updateOne({name},
-           {$push: {topFans: {
-             userId,
-             atempts: 10,
-             points
-           }}})
-
-           return res.json({type:'SUCCESS',msg:'points submited'})
+           {$push: {topFans: {$each: [{userId,points}]},
+                              $sort: {points: -1}
+                             }})
+           return res.json({type:'SUCCESS',msg:'Points submited'})
        }else {
-         let prevPoints = 0;
-         for(let i = 0; i < user.topFans.length; i++){
-            if(user.topFans[i].userId === userId){
-              prevPoints = user.topFans[i].points
-              break;
-            }
-         }
-
          let insertResult = await usersModel.updateOne({name,"topFans.userId":userId},
            {$inc: {
-             "topFans.$.points": points,
-             "topFans.$.atempts": 10}})
-             req.session.user.questionsToken = ""
+             "topFans.$.points": points
+           }})
+          if(insertResult.nModified > 0 ) {
+            await usersModel.updateOne({name},{$push: {topFans: {
+                  $each: [],
+                  $sort: {points: -1}
+            }}})
+          }
+           req.session.user.questionsToken = ""
            return res.json({type:'SUCCESS',msg:'points submited'})
        }
      } catch (e) {

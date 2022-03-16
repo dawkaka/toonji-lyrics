@@ -508,7 +508,7 @@ profileRoute.get('/api/p/top-fans/:name/:fetch',async (req,res)=>{
   try{
    let {name,fetch} = req.params
     fetch = parseInt(fetch)
-   const limit = 1000
+   const limit = 25
    let topFansId = await usersModel.aggregate([{$match: {name}},{$project:{topFans: {$slice:["$topFans",fetch,limit]}}}])
    let arr  = topFansId[0].topFans.map(a => {
       return a.userId
@@ -522,25 +522,16 @@ profileRoute.get('/api/p/top-fans/:name/:fetch',async (req,res)=>{
           topFan.push({
             name: topFans[j].name,
             picture: process.env.IMAGEURL + topFans[j].picture,
-            points: topFansId[0].topFans[i].points,
-            atempts: topFansId[0].topFans[i].atempts
+            points: Math.round(topFansId[0].topFans[i].points) || 0,
           })
           break;
         }
       }
    }
-   let topFansSort = topFan.sort((a,b)=>(b.points - (b.atempts * 2))
-   - (a.points - (a.atempts * 2)))
-   let data = topFan.map(a => {
-     return {
-       name: a.name,
-       picture: a.picture,
-       points: a.points - (a.atempts * 2)
-     }
-   })
-    res.json({data: data, nextFetch: fetch + limit, isEnd: data.length < limit ? true : false})
- }catch(e){
 
+    res.json({data: topFan, nextFetch: fetch + limit, isEnd: topFan.length < limit ? true : false})
+ }catch(e){
+   console.log(e)
    res.status(500).json({type:'ERROR',msg:'something went wrong'})
  }
 })
