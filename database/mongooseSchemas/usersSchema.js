@@ -71,7 +71,7 @@ const usersSchema = new Schema({
   },
   topFans: [{
     userId: String,
-    atempts: Number,
+    attempts: Number,
     points: Number
   }],
   notifications: {

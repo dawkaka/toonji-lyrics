@@ -37,20 +37,17 @@ quizRouter.post('/api/top-fan/:name/:points',validate,async (req,res)=>{
        points = parseInt(points) || 0
        let userId = req.session.user.userId
        let user = await usersModel.findOne({name, topFans: {$elemMatch: {userId}}})
-       console.log(user)
-       //if(user === null) return res.status(400).json({type:'ERROR',msg:'artist not found'})
-       points = points / 10 || 0
-        console.log(points)
+
        if(!user) {
          let insertResult = await usersModel.updateOne({name},
-           {$push: {topFans: {$each: [{userId,points}]},
+           {$push: {topFans: {$each: [{userId,points,attempts: 10}]},
                               $sort: {points: -1}
                              }})
-           return res.json({type:'SUCCESS',msg:'Points submited'})
        }else {
          let insertResult = await usersModel.updateOne({name,"topFans.userId":userId},
            {$inc: {
-             "topFans.$.points": points
+             "topFans.$.points": points,
+             "topFans.$.attempt": 10
            }})
           if(insertResult.nModified > 0 ) {
             await usersModel.updateOne({name},{$push: {topFans: {
@@ -58,9 +55,11 @@ quizRouter.post('/api/top-fan/:name/:points',validate,async (req,res)=>{
                   $sort: {points: -1}
             }}})
           }
-           req.session.user.questionsToken = ""
-           return res.json({type:'SUCCESS',msg:'points submited'})
-       }
+        }
+
+       req.session.user.questionsToken = ""
+       return res.json({type:'SUCCESS',msg:'points submited'})
+
      } catch (e) {
 
        res.status(500).json({type:'ERROR',msg:'something went wrong'})
@@ -118,18 +117,22 @@ quizRouter.get("/api/battle/:battleId",validate,async(req,res)=> {
      }
 })
 
-quizRouter.get("/api/battle-records/:userName", async (req,res)=> {
+quizRouter.get("/api/battle-records/:userName/:fetch", async (req,res)=> {
   try {
     const userName = req.params.userName
-    const user = await usersModel.findOne({name: userName},{battles:1, userId: 1})
-    const battles = await allBattlesModel.find({battleId: {$in: user.battles}})
+    const fetch = parseInt(req.params.fetch) || 0
+    const limit = 25
+    const user = await usersModel.aggregate([{$match: {name: userName}},{$project:{battles: {$slice:["$battles",fetch,limit]}, userId: "$userId"}}])
+
+    const battles = await allBattlesModel.find({battleId: {$in: user[0].battles}})
+
     let opponents = [];
-    opponents.push(user.userId)
+    opponents.push(user[0].userId)
     for(let i = 0; i < battles.length; i++) {
-       if(battles[i].battleOwner.userId !== user.userId && !opponents.some(a => a === battles[i].battleOwner.userId)) {
+       if(battles[i].battleOwner.userId !== user[0].userId && !opponents.some(a => a === battles[i].battleOwner.userId)) {
          opponents.push(battles[i].battleOwner.userId)
        }
-       if(battles[i].opponent.userId !== user.userId && !opponents.some(a => a === battles[i].opponent.userId)) {
+       if(battles[i].opponent.userId !== user[0].userId && !opponents.some(a => a === battles[i].opponent.userId)) {
          opponents.push(battles[i].opponent.userId)
        }
     }
@@ -149,34 +152,38 @@ quizRouter.get("/api/battle-records/:userName", async (req,res)=> {
         userOne: {
           name: userMap[`${a.battleOwner.userId}`].name,
           points: a.battleOwner.userPoints,
-          picture: process.env.IMAGEURL + userMap[`${a.battleOwner.userId}`].picture
+          picture: userMap[`${a.battleOwner.userId}`].picture
         },
         userTwo: {
           name: userMap[`${a.opponent.userId}`].name,
           points: a.opponent.userPoints,
-          picture: process.env.IMAGEURL + userMap[`${a.opponent.userId}`].picture
+          picture: userMap[`${a.opponent.userId}`].picture
         }
       }
     }).filter(a => a.userOne.name && a.userTwo.name && a.userOne.points !== 0 && a.userTwo.points !== 0)
-    res.json(battlesMap)
+    res.json({data:battlesMap,nextFech: fetch + limit, isEnd:battles.length < limit ? true: false})
   } catch (e) {
     res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })
 
 
-quizRouter.get("/api/my/battle-records",validate,async (req,res)=> {
+quizRouter.get("/api/my/battle-records/:fetch",validate,async (req,res)=> {
   try {
     const userName = req.session.user.name
-    const user = await usersModel.findOne({name: userName},{battles:1, userId: 1})
-    const battles = await allBattlesModel.find({battleId: {$in: user.battles}})
+    const fetch = parseInt(req.params.fetch) || 0
+    const limit = 25
+    const user = await usersModel.aggregate([{$match: {name: userName}},{$project:{battles: {$slice:["$battles",fetch,limit]}, userId: "$userId"}}])
+
+    const battles = await allBattlesModel.find({battleId: {$in: user[0].battles}})
+
     let opponents = [];
-    opponents.push(user.userId)
+    opponents.push(user[0].userId)
     for(let i = 0; i < battles.length; i++) {
-       if(battles[i].battleOwner.userId !== user.userId && !opponents.some(a => a === battles[i].battleOwner.userId)) {
+       if(battles[i].battleOwner.userId !== user[0].userId && !opponents.some(a => a === battles[i].battleOwner.userId)) {
          opponents.push(battles[i].battleOwner.userId)
        }
-       if(battles[i].opponent.userId !== user.userId && !opponents.some(a => a === battles[i].opponent.userId)) {
+       if(battles[i].opponent.userId !== user[0].userId && !opponents.some(a => a === battles[i].opponent.userId)) {
          opponents.push(battles[i].opponent.userId)
        }
     }
@@ -196,17 +203,18 @@ quizRouter.get("/api/my/battle-records",validate,async (req,res)=> {
         userOne: {
           name: userMap[`${a.battleOwner.userId}`].name,
           points: a.battleOwner.userPoints,
-          picture: process.env.IMAGEURL + userMap[`${a.battleOwner.userId}`].picture
+          picture: userMap[`${a.battleOwner.userId}`].picture
         },
         userTwo: {
           name: userMap[`${a.opponent.userId}`].name,
           points: a.opponent.userPoints,
-          picture: process.env.IMAGEURL + userMap[`${a.opponent.userId}`].picture
+          picture: userMap[`${a.opponent.userId}`].picture
         }
       }
     }).filter(a => a.userOne.name && a.userTwo.name && a.userOne.points !== 0 && a.userTwo.points !== 0)
-    res.json(battlesMap)
+    res.json({data:battlesMap,nextFech: fetch + limit, isEnd:battlesMap.length < limit ? true: false})
   } catch (e) {
+    console.log(e)
     res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })

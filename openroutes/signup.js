@@ -44,7 +44,6 @@ signupRoute.post('/api/signup',async (req,res)=> {
          email,
          userId : generateID(),
          password: hashedPassword,
-         userCoins: 1000,
          dateJoined: new Date(),
        })
      await user.save();

@@ -507,7 +507,7 @@ function numberToKOrM(n) {
 profileRoute.get('/api/p/top-fans/:name/:fetch',async (req,res)=>{
   try{
    let {name,fetch} = req.params
-    fetch = parseInt(fetch)
+    fetch = parseInt(fetch) ||0
    const limit = 25
    let topFansId = await usersModel.aggregate([{$match: {name}},{$project:{topFans: {$slice:["$topFans",fetch,limit]}}}])
    let arr  = topFansId[0].topFans.map(a => {
