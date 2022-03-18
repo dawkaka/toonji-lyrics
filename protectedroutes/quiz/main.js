@@ -122,17 +122,25 @@ quizRouter.get("/api/battle-records/:userName/:fetch", async (req,res)=> {
     const userName = req.params.userName
     const fetch = parseInt(req.params.fetch) || 0
     const limit = 25
-    const user = await usersModel.aggregate([{$match: {name: userName}},{$project:{battles: {$slice:["$battles",fetch,limit]}, userId: "$userId"}}])
 
-    const battles = await allBattlesModel.find({battleId: {$in: user[0].battles}})
+    const user = await usersModel.findOne({name: userName},{battles: 1, userId: 1})
+    const battles = await allBattlesModel.find({
+      battleId:{$in: user.battles},
+      'battleOwner.userPoints': {
+          $gt: 0
+        },
+      'opponent.userPoints': {
+          $gt: 0
+      }
+    }).skip(fetch).limit(limit)
 
     let opponents = [];
-    opponents.push(user[0].userId)
+    opponents.push(user.userId)
     for(let i = 0; i < battles.length; i++) {
-       if(battles[i].battleOwner.userId !== user[0].userId && !opponents.some(a => a === battles[i].battleOwner.userId)) {
+       if(battles[i].battleOwner.userId !== user.userId && !opponents.some(a => a === battles[i].battleOwner.userId)) {
          opponents.push(battles[i].battleOwner.userId)
        }
-       if(battles[i].opponent.userId !== user[0].userId && !opponents.some(a => a === battles[i].opponent.userId)) {
+       if(battles[i].opponent.userId !== user.userId && !opponents.some(a => a === battles[i].opponent.userId)) {
          opponents.push(battles[i].opponent.userId)
        }
     }
@@ -173,17 +181,26 @@ quizRouter.get("/api/my/battle-records/:fetch",validate,async (req,res)=> {
     const userName = req.session.user.name
     const fetch = parseInt(req.params.fetch) || 0
     const limit = 25
-    const user = await usersModel.aggregate([{$match: {name: userName}},{$project:{battles: {$slice:["$battles",fetch,limit]}, userId: "$userId"}}])
+    const user = await usersModel.findOne({name: userName},{battles: 1, userId: 1})
 
-    const battles = await allBattlesModel.find({battleId: {$in: user[0].battles}})
+
+    const battles = await allBattlesModel.find({
+      battleId:{$in: user.battles},
+      'battleOwner.userPoints': {
+          $gt: 0
+        },
+      'opponent.userPoints': {
+          $gt: 0
+      }
+    }).skip(fetch).limit(limit)
 
     let opponents = [];
-    opponents.push(user[0].userId)
+    opponents.push(user.userId)
     for(let i = 0; i < battles.length; i++) {
-       if(battles[i].battleOwner.userId !== user[0].userId && !opponents.some(a => a === battles[i].battleOwner.userId)) {
+       if(battles[i].battleOwner.userId !== user.userId && !opponents.some(a => a === battles[i].battleOwner.userId)) {
          opponents.push(battles[i].battleOwner.userId)
        }
-       if(battles[i].opponent.userId !== user[0].userId && !opponents.some(a => a === battles[i].opponent.userId)) {
+       if(battles[i].opponent.userId !== user.userId && !opponents.some(a => a === battles[i].opponent.userId)) {
          opponents.push(battles[i].opponent.userId)
        }
     }
@@ -212,7 +229,7 @@ quizRouter.get("/api/my/battle-records/:fetch",validate,async (req,res)=> {
         }
       }
     }).filter(a => a.userOne.name && a.userTwo.name && a.userOne.points !== 0 && a.userTwo.points !== 0)
-    res.json({data:battlesMap,nextFech: fetch + limit, isEnd:battlesMap.length < limit ? true: false})
+    res.json({data:battlesMap,nextFetch: fetch + limit, isEnd:battlesMap.length < limit ? true: false})
   } catch (e) {
     console.log(e)
     res.status(500).json({type:'ERROR',msg:'something went wrong'})
