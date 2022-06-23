@@ -32,7 +32,7 @@ breakdownsRouter.get('/api/breakdowns/:songId/:barIndx',async(req,res)=>{
        if(breakdownObj[b.userId] !== undefined){
          let obj = {
            name: breakdownObj[b.userId].name,
-           picture: process.env.IMAGEURL + breakdownObj[b.userId].picture,
+           picture: breakdownObj[b.userId].picture,
            points: numberToKOrM(breakdownObj[b.userId].points),
            id: b._id,
            breakdown: b.breakdown,

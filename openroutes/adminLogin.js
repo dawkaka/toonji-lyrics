@@ -5,7 +5,7 @@ const adminsModel = require('../database/mongooseSchemas/adminsSchema')
 
 adminLoginRoute.post('/api/c/contributor-login',async (req,res)=>{
   if(req.session.admin !== undefined) {
-    return res.json({type:"SUCCESS",msg: "you are already logged in"})
+    return res.json({type:"SUCCESS",msg: "logged in"})
   }
 
   if(req.session.loginNextTry > Date.now()) {

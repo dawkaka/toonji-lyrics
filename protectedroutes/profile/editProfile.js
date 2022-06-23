@@ -6,16 +6,12 @@ const path = require('path')
 const usersModel = require('../../database/mongooseSchemas/usersSchema')
 const validate = require('../validate');
 const dataDir = `${__dirname}/data`;
-const AWS = require("aws-sdk");
-const s3 = new AWS.S3({
-    accessKeyId: process.env.s3Id,
-    secretAccessKey: process.env.s3Key
-});
+const s3 = require("../../libs/aws");
+
 editProfileRoute.post('/api/profile/edit-profile/',validate,async(req,res)=>{
   try {
   const form = new formidable.IncomingForm()
   form.parse(req,(err,fields, files)=>{
-console.log(fields, files)
     if(err) return res.json({msg: "something went wrong"})
     const {name, bio} = fields;
     if(name === undefined || bio === undefined) {
@@ -34,9 +30,9 @@ console.log(fields, files)
     let sizeInMb = stats.size/(1024 * 1024)
     if(sizeInMb > 3) return res.status(400).json({type:'ERROR',msg:'image file too large'})
     picture.name = Date.now() + picture.name.replace("/\W/g","");
-    extNameImage = path.extname(picture.name);
+    extNameImage = path.extname(picture.name).toLowerCase();
     if(extNameImage != '.jpeg' && extNameImage != '.jpg' && extNameImage != '.png'){
-      return res.json({msg: 'invalid image file formats'});
+      return res.json({msg: 'invalid image file format'});
     }
   }
  const sessionId = req.session.user.userId;
@@ -55,20 +51,19 @@ console.log(fields, files)
           const fileContent = fs.readFileSync(picture.path);
            fs.unlinkSync(picture.path)
           const params = {
-              Bucket: 'tunjiimages',
+              Bucket: 'toonjimages',
               Key: pName, // File name; to save as in S3
               Body: fileContent,
               ContentType: 'image/jpg',
-              ACL: 'public-read'
           };
           s3.upload(params, function(err, data) {
-
+            console.log(err)
               if (err) {
                   res.status(500).json({type:'ERROR',msg:'error uploading image'})
               }else {
                 usersModel.updateOne({userId: sessionId},{$set:{name,bio,picture: pName}},
                  (err,data)=>{
-                 if(err) return res.status(400).json({type:'ERROR',msg: "error saving info, try again"})
+                 if(err) return res.status(400).json({type:'ERROR',msg: "something went wrong, try again."})
                  req.session.user.userName = name
                  req.session.user.name = name
                  res.json({type:"SUCCESS",msg:"profile updated"});
@@ -78,7 +73,7 @@ console.log(fields, files)
         } else {
         usersModel.updateOne({userId: sessionId},{$set:{name,bio,picture: pName}},
          (err,data)=>{
-         if(err) return res.status(400).json({type:'ERROR',msg: "error saving info, try again"})
+         if(err) return res.status(400).json({type:'ERROR',msg: "someting went wrong, try again"})
            req.session.user.userName = name
            req.session.user.name = name
            res.json({type:"SUCCESS",msg:"profile updated"});
@@ -97,15 +92,14 @@ console.log(fields, files)
           const fileContent = fs.readFileSync(picture.path);
            fs.unlinkSync(picture.path)
           const params = {
-              Bucket: 'tunjiimages',
+              Bucket: 'toonjimages',
               Key: pName, // File name you want to save as in S3
               Body: fileContent,
               ContentType: 'image/jpg',
-              ACL: 'public-read'
           };
           s3.upload(params, function(err, data) {
               if (err) {
-
+                  console.log(err)
                   res.status(400).json({type:'ERROR',msg:'error uploading image'})
               }else {
 

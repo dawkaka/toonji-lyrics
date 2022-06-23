@@ -2,19 +2,13 @@ const express = require('express');
 const formidable = require('formidable');
 const fs = require('fs')
 const path = require('path');
-const AWS = require("aws-sdk");
+const s3 = require("../../libs/aws")
 const lyricsRouter = express.Router();
 const stringSimilarity = require("string-similarity")
 const validate = require('../validate');
 const songsModel = require('../../database/mongooseSchemas/songsSchema')
 const usersModel = require('../../database/mongooseSchemas/usersSchema')
 const requestReportModel = require('../../database/mongooseSchemas/requestAndReports')
-
-
-const s3 = new AWS.S3({
-    accessKeyId: process.env.s3Id,
-    secretAccessKey: process.env.s3Key
-});
 
 lyricsRouter.get('/api/c/contributor-request',validate,async(req,res)=> {
   try {
@@ -112,11 +106,10 @@ const form = new formidable.IncomingForm();
   const fileContent = fs.readFileSync(image.path);
    fs.unlinkSync(image.path)
   const params = {
-      Bucket: 'tunjiimages',
+      Bucket: 'toonjimages',
       Key: image.name,
       Body: fileContent,
       ContentType: 'image/jpg',
-      ACL: 'public-read'
   };
   s3.upload(params, (err, data) => {
       if (err) {
@@ -306,11 +299,10 @@ lyricsRouter.post('/api/edit-lyrics/:id',validate2,async (req,res)=>{
         fs.unlinkSync(image.path)
         console.log(songToEdit.songCover);
        const params = {
-           Bucket: 'tunjiimages',
+           Bucket: 'toonjimages',
            Key: songToEdit.songCover,
            Body: fileContent,
            ContentType: 'image/jpg',
-           ACL: 'public-read'
        };
        let editor;
        if(req.session.user){

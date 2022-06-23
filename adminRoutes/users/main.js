@@ -5,12 +5,7 @@ const fs = require('fs');
 const validate = require('../validate');
 const path = require('path')
 const requestReportModel = require('../../database/mongooseSchemas/requestAndReports')
-const AWS = require("aws-sdk");
-
-const s3 = new AWS.S3({
-    accessKeyId: process.env.s3Id,
-    secretAccessKey: process.env.s3Key
-});
+const s3 = require("../../libs/aws")
 
 usersRoutes.post('/api/c/request/:id',validate,async(req,res)=> {
   try {

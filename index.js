@@ -18,7 +18,7 @@ const songsModel = require("./database/mongooseSchemas/songsSchema")
 const allBattlesModel = require("./database/mongooseSchemas/allBattlesSchema")
 
 const openRoutes = require('./openroutes/main')
-const protectedRoutes = require('./protectedRoutes/main');
+const protectedRoutes = require('./protectedroutes/main');
 const adminRoutes = require('./adminRoutes/main')
 const jsonParser = bodyParser.json()
 const cookieParser = require("cookie-parser")

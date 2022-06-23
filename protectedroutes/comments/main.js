@@ -36,7 +36,7 @@ commentsRouter.get('/api/comments/:songId/:int',async(req,res)=> {
       comment: a.commentText,
       date: a.date,
       name: commentObj[`${a.userId}`].name,
-      picture: process.env.IMAGEURL + commentObj[`${a.userId}`].picture,
+      picture: commentObj[`${a.userId}`].picture,
       points: numberToKOrM(commentObj[`${a.userId}`].points),
       likes: getLikes(a.likes),
       id: a._id,
