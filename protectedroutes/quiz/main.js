@@ -11,7 +11,7 @@ try {
  let songs = await songsModel.find({songArtist: req.params.profileId})
  let user = await usersModel.findOne({userId: req.session.user.userId},{userCoins:1})
  if(!user)return res.status(400).json({type:'ERROR',msg:'we are not able to identify you'})
- if(user.userCoins < 50) return res.status(401).json({type:'ERROR',msg:'more coins required'})
+ //if(user.userCoins < 50) return res.status(401).json({type:'ERROR',msg:'more coins required'})
  if(!songs.length){
    res.status(400).json({type: "Error", msg:"No songs from this artist"})
  }else {
@@ -19,7 +19,7 @@ try {
  let questionsToken = generateID()
  req.session.user.questionsToken = questionsToken;
  res.cookie('token_id',questionsToken,{signed: true})
- await usersModel.updateOne({userId: req.session.user.userId},{$set:{userCoins: user.userCoins - 50}})
+ //await usersModel.updateOne({userId: req.session.user.userId},{$set:{userCoins: user.userCoins - 50}})
  return res.json(generatedQuestions)
 }
 } catch (e) {
@@ -76,9 +76,9 @@ quizRouter.post("/api/battle/battle-link",validate, async(req,res) => {
         const users = await usersModel.find({name: {$in: artists},verified:true},{userId:1,_id:0})
         if(!user) return res.status(400).json({type:'ERROR',msg:'We could not identify you'})
         if(users.length !== artists.length) return res.status(400).json({type:'ERROR',msg:"some of the artists are not on toonji. Check the names and try again"})
-        if(user.userCoins - 100 < 0) return res.status(400).json({type:'ERROR',msg:"more coins required"})
+        //if(user.userCoins - 100 < 0) return res.status(400).json({type:'ERROR',msg:"more coins required"})
         const linkId = generateID(15)
-        await usersModel.updateOne({userId},{$set:{userCoins: user.userCoins - 100}})
+        //await usersModel.updateOne({userId},{$set:{userCoins: user.userCoins - 100}})
         const battle = new battlesModel({
           battleId: linkId,
           battleOwner: user.userId,

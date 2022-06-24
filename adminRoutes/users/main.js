@@ -60,19 +60,18 @@ usersRoutes.post('/api/c/users/create-verified-profile',validate,async (req,res)
     let sizeInMb = stats.size/(1024 * 1024)
     if(sizeInMb > 3) return res.status(400).json({type:'ERROR',msg:'image file too large'})
     picture.name = Date.now() + picture.name.replace('/\W/g','');
-    extNameImage = path.extname(picture.name);
-    if(extNameImage != '.jpg'){
+    extNameImage = path.extname(picture.name).toLowerCase();
+    if(extNameImage !== '.jpg' && extNameImage !== ".png"){
       return res.status(400).json({type:'ERROR', msg: 'invalid image file formats'});
     }
 
     const fileContent = fs.readFileSync(picture.path);
      fs.unlinkSync(picture.path)
     const params = {
-        Bucket: 'tunjiimages',
+        Bucket: 'toonjimages',
         Key: picture.name, // File name you want to save as in S3
         Body: fileContent,
-        ContentType: 'image/jpg',
-        ACL: 'public-read'
+        ContentType: 'image/' + extNameImage,
     };
     s3.upload(params, function(err, data) {
         if (err) {
@@ -127,11 +126,12 @@ function generateID() {
 usersRoutes.get('/api/users/:userName',validate,async(req,res)=> {
       try {
         let userName = req.params.userName;
-        const users = await usersModel.find({name:{$regex:"^"+userName,$options:'i'}},{name:1,picture:1,verified:1,bio:1})
+        let users = await usersModel.find({name:{$regex:"^"+userName,$options:'i'}},{name:1,picture:1,verified:1,bio:1})
         users = users.map(user => {
-          user.picture = process.env.IMAGEURL + users.picture
+          user.picture = process.env.IMAGEURL + user.picture
           return user
         })
+
         return res.json(users)
       } catch (e) {
         return res.status(500).json({type:'ERROR',msg:'something went wrong'})
@@ -166,7 +166,7 @@ usersRoutes.post('/api/users/verify/:userName',validate,async(req,res)=> {
 usersRoutes.post('/api/admin/profile/edit-profile',validate,async(req,res)=> {
   const form = new formidable.IncomingForm()
   form.parse(req,(err,fields, files)=>{
-    if(err) return res.json({msg: "something went wrong"})
+    if(err) return res.status(400).json({type:'ERROR', msg: "something went wrong"})
     const {name, bio, prevName} = fields;
     if(name === undefined || bio === undefined) {
       return res.status(400).json({type:'ERROR',msg:'Missing some body parts'})
@@ -183,8 +183,8 @@ usersRoutes.post('/api/admin/profile/edit-profile',validate,async(req,res)=> {
       let sizeInMb = stats.size/(1024 * 1024)
       if(sizeInMb > 3) return res.status(400).json({type:'ERROR',msg:'image file too large'})
     picture.name = Date.now() + '-' + picture.name.replace("/\W/g","");
-    extNameImage = path.extname(picture.name);
-    if(extNameImage != '.jpg'){
+    extNameImage = path.extname(picture.name).toLowerCase();
+    if(extNameImage !== '.jpg' && extNameImage !== ".png"){
       return res.json({msg: 'invalid image file formats'});
     }
   }
@@ -204,11 +204,10 @@ usersRoutes.post('/api/admin/profile/edit-profile',validate,async(req,res)=> {
           const fileContent = fs.readFileSync(picture.path);
            fs.unlinkSync(picture.path)
           const params = {
-              Bucket: 'tunjiimages',
+              Bucket: 'toonjimages',
               Key: pName, // File name you want to save as in S3
               Body: fileContent,
-              ContentType: 'image/jpg',
-              ACL: 'public-read'
+              ContentType: 'image/' + extNameImage,
           };
           s3.upload(params, function(err, data) {
               if (err) {
@@ -242,11 +241,10 @@ usersRoutes.post('/api/admin/profile/edit-profile',validate,async(req,res)=> {
           const fileContent = fs.readFileSync(picture.path);
            fs.unlinkSync(picture.path)
           const params = {
-              Bucket: 'tunjiimages',
+              Bucket: 'toonjimages',
               Key: pName, // File name you want to save as in S3
               Body: fileContent,
-              ContentType: 'image/jpg',
-              ACL: 'public-read'
+              ContentType: 'image/' + extNameImage,
           };
           s3.upload(params, function(err, data) {
               if (err) {

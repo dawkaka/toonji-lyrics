@@ -205,11 +205,11 @@ lyricsRouter.post('/api/songs/clear-reports/:songId',validate,async(req,res)=> {
 
 lyricsRouter.get('/api/songs/title/:songTitle',validate,async(req,res) => {
    try {
-     const songs = await songsModel.find({songTitle:
+     let songs = await songsModel.find({songTitle:
        {$regex:"^"+req.params.songTitle,$options:'i'}},
        {songTitle:1,songId:1,songCover:1,songArtist:1})
        songs = songs.map(song => {
-         song.songCover = process.env.IMAGEURL + songs.songCover
+         song.songCover = process.env.IMAGEURL + song.songCover
          return song
        })
      return res.json(songs)
