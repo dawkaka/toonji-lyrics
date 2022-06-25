@@ -167,7 +167,6 @@ try{
   }
  res.status(400).json({type:'ERROR', message: 'something went wrong'})
 }catch(e) {
-  console.log(e);
   res.status(500).json({type:'ERROR',msg:'something went wrong'})
 }
 });
@@ -277,7 +276,6 @@ try{
   }
  res.status(400).json({type:'ERROR',msg:'invalid selection'})
 }catch(e) {
-  console.log(e);
   res.status(500).json({type:'ERROR',msg:'something went wrong'})
 }
 });

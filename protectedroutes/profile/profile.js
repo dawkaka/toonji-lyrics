@@ -28,7 +28,6 @@ profileRoute.get('/api/p/notifications-count',async(req,res)=> {
       const {awards,likes, others, upvotes,followers} = userNotifs.notifications
       res.json({count: likes.length + awards.length + others.length + upvotes.length + followers.length})
     } catch (e) {
-      console.log(e)
       res.status(500).json({type:'ERROR', msg: 'something went wrong'})
     }
 })
@@ -281,7 +280,6 @@ profileRoute.get('/api/p/my/following/:fetch',validate,async(req,res)=> {
     })
     res.json({data:following, nextFetch: fetch + limit, isEnd: following.length < limit ? true:false})
   } catch (e) {
-    console.log(e);
     res.status(500).json({type:'ERROR',msg:'someting went wrong'})
   }
 })
@@ -531,7 +529,6 @@ profileRoute.get('/api/p/top-fans/:name/:fetch',async (req,res)=>{
 
     res.json({data: topFan, nextFetch: fetch + limit, isEnd: topFan.length < limit ? true : false})
  }catch(e){
-   console.log(e)
    res.status(500).json({type:'ERROR',msg:'something went wrong'})
  }
 })

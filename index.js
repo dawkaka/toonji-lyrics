@@ -29,6 +29,7 @@ origin: ['http:// 192.168.43.59:3000','http://localhost:19006','http://localhost
 credentials:true,
 exposedHeaders:['set-cookie',"Date"]
 }))
+
 switch(app.get('env')){
   case 'development':        // compact, colorful dev logging
   app.use(require('morgan')(':method :url :status :res[content-length] - :response-time ms'));
@@ -39,6 +40,10 @@ switch(app.get('env')){
    break;
  }
 
+app.use(function(req, res, next) {
+   res.setTimeout(30 * 1000);
+   next();
+});
 
 app.use(bodyParser.urlencoded({extended:false}));
 app.use(jsonParser)
@@ -63,8 +68,7 @@ app.disable('x-powered-by')
 
 app.use(function(req,res,next){
 const cluster = require('cluster');
-if(cluster.isWorker) console.log('Worker %d received request',
-cluster.worker.id);
+if(cluster.isWorker)
 next()
 });
 
@@ -99,9 +103,7 @@ app.use((req,res,next)=> {
 });
 
 io.of("/api-battle").on('connection',socket => {
-
-  socket.on("disconnecting", async () => {
-
+ socket.on("disconnecting", async () => {
    let room;
    let socketId
    for (let key of socket.adapter.sids.keys()) {

@@ -293,7 +293,6 @@ breakdownsRouter.post("/api/award-breakdown",validate,async(req,res)=> {
         res.json({type:'SUCCESS',msg:"breakdown awarded"})
 
       } catch (e) {
-        console.log(e);
         res.status(500).json({type:'ERROR',msg:'something went wrong'})
       }
     })

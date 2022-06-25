@@ -16,7 +16,6 @@ lyricsRouter.post('/api/lyrics/viewed/:lyricsId',async(req,res)=>{
          }
 
       } catch (e) {
-        console.log(e)
         return res.status(400).json({type:'ERROR',msg:'something went wrong'})
       }
       res.json({type:"SUCCESS",msg:"view counted"})
