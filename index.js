@@ -29,6 +29,7 @@ origin: ['http://localhost:3000',
 credentials:true,
 exposedHeaders:['set-cookie',"Date"]
 }))
+
 switch(app.get('env')){
   case 'development':        // compact, colorful dev logging
   app.use(require('morgan')(':method :url :status :res[content-length] - :response-time ms'));
@@ -66,8 +67,7 @@ app.disable('x-powered-by')
 
 app.use(function(req,res,next){
 const cluster = require('cluster');
-if(cluster.isWorker) console.log('Worker %d received request',
-cluster.worker.id);
+if(cluster.isWorker)
 next()
 });
 
@@ -102,9 +102,7 @@ app.use((req,res,next)=> {
 });
 
 io.of("/api-battle").on('connection',socket => {
-
-  socket.on("disconnecting", async () => {
-
+ socket.on("disconnecting", async () => {
    let room;
    let socketId
    for (let key of socket.adapter.sids.keys()) {
