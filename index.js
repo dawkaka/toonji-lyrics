@@ -24,7 +24,7 @@ const jsonParser = bodyParser.json()
 const cookieParser = require("cookie-parser")
 app.use(helmet())
 app.use(cors({
-origin: ['http:// 192.168.43.59:3000','http://localhost:19006','http://localhost:3000',
+origin: ['http://localhost:3000',
 'https://toonji.com'],
 credentials:true,
 exposedHeaders:['set-cookie',"Date"]
@@ -39,7 +39,10 @@ switch(app.get('env')){
    break;
  }
 
-
+app.use((req,res,next) => {
+   req.setTimout(30 * 1000)
+   next()
+})
 app.use(bodyParser.urlencoded({extended:false}));
 app.use(jsonParser)
 app.use(cookieParser(process.env.cookieSecret));

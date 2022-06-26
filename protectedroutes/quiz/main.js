@@ -90,7 +90,7 @@ quizRouter.post("/api/battle/battle-link",validate, async(req,res) => {
         await battle.save()
         res.json({battleId: linkId, artists})
       } catch (e) {
-        console.log(e);
+
         res.status(500).json({type:'ERROR',msg:'something went wrong'})
       }
 })
@@ -231,7 +231,6 @@ quizRouter.get("/api/my/battle-records/:fetch",validate,async (req,res)=> {
     }).filter(a => a.userOne.name && a.userTwo.name && a.userOne.points !== 0 && a.userTwo.points !== 0)
     res.json({data:battlesMap,nextFetch: fetch + limit, isEnd:battlesMap.length < limit ? true: false})
   } catch (e) {
-    console.log(e)
     res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 })

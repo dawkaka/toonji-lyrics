@@ -105,7 +105,6 @@ coinsRouter.post("/api/buy-coins/flutterwave",validate,async (req,res)=> {
             }
           })
     } catch (e) {
-       console.log(e);
        res.status(400).json({type:'ERROR',msg:'something went wrong'})
        return
     }

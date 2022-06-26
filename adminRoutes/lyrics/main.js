@@ -297,7 +297,6 @@ lyricsRouter.post('/api/edit-lyrics/:id',validate2,async (req,res)=>{
         if(image){
        const fileContent = fs.readFileSync(image.path);
         fs.unlinkSync(image.path)
-        console.log(songToEdit.songCover);
        const params = {
            Bucket: 'toonjimages',
            Key: songToEdit.songCover,

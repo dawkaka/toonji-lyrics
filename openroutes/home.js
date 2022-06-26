@@ -12,7 +12,7 @@ homeRoute.get('/api',async (req,res)=> {
       seen = viewed.viewed.map(a => a.songId)
       seen = Array.from(new Set(seen))
     }
-    
+
     let songs = await songsModel.find({songId: {$nin: seen}}).sort({uploadDate:-1});
     let recommended = getTopNine(songs,getRating,9)
     let newArrivals = songs.splice(0,9)
@@ -57,7 +57,6 @@ homeRoute.get('/api',async (req,res)=> {
     })
     res.json({songs:recommended,newArrivals:newArrivals})
   }catch (e) {
-    console.log(e);
     res.status(500).json({type:'ERROR',msg:'something went wrong'})
   }
 });
