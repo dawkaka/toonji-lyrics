@@ -57,10 +57,6 @@ editProfileRoute.post('/api/profile/edit-profile/',validate,async(req,res)=>{
               ContentType: 'image/jpg',
           };
           s3.upload(params, function(err, data) {
-<<<<<<< HEAD
-
-=======
->>>>>>> fbda471ecccc60e5545faaebfd73c29555b405ec
               if (err) {
                   res.status(500).json({type:'ERROR',msg:'error uploading image'})
               }else {
