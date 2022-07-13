@@ -93,11 +93,12 @@ const form = new formidable.IncomingForm();
   writers,otherArtists,releaseDate,youtubeVideo}  = fields;
   const songUploadedAlready = await songsModel.findOne({songTitle:songTitle,songArtist:artist})
   if(songUploadedAlready) return res.status(409).json({type:'ERROR', msg:'song uploaded already'})
-  const songs = await songsModel.find({},{punchlines:1})
-  const rawBars = reducePunchlines(songs)
-  let sm = stringSimilarity.findBestMatch(lyrics,rawBars)
 
-  if(sm.bestMatch.rating > 0.85) return res.status(409).json({type:'ERROR',msg:"song already uploaded"})
+  // const songs = await songsModel.find({},{punchlines:1})
+  // const rawBars = reducePunchlines(songs)
+  // let sm = stringSimilarity.findBestMatch(lyrics,rawBars)
+
+  // if(sm.bestMatch.rating > 0.85) return res.status(409).json({type:'ERROR',msg:"song already uploaded"})
 
   let punchlinesArray = validateLyricsFormat(lyrics);
    if(!Array.isArray(punchlinesArray)) {
@@ -123,7 +124,7 @@ const form = new formidable.IncomingForm();
           uploader = req.session.admin.userId
         }
     let song = new songsModel({
-       songId: generateID(),
+       songId: `${artist.split(" ").join("-")}-${songTitle.split(" ").join("-").toLocaleLowerCase()}-lyrics-${generateID()}`,
        songArtist: artist,
        uploadedBy: uploader,
        songGenre,
@@ -366,7 +367,7 @@ function validate2(req,res,next) {
 function generateID() {
   let chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
   let str = '';
-  for(let i = 0; i < 11; i++) {
+  for(let i = 0; i < 5; i++) {
     str += chars[Math.floor((Math.random() * (chars.length)))];
   }
   return str

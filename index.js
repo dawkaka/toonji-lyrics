@@ -41,7 +41,7 @@ switch(app.get('env')){
  }
 
 app.use((req,res,next) => {
-   req.setTimout(30 * 1000)
+   req.setTimeout(30 * 1000)
    next()
 })
 app.use(bodyParser.urlencoded({extended:false}));
@@ -67,7 +67,7 @@ app.disable('x-powered-by')
 
 app.use(function(req,res,next){
 const cluster = require('cluster');
-if(cluster.isWorker)
+//if(cluster.isWorker)
 next()
 });
 
